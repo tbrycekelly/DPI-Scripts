@@ -1,3 +1,4 @@
+![DPI-Scripts Logo](./docs/images/DPI-Scripts%20Logo.png)
 # DPI-Scripts
 These scripts were originally inspired by the _Plankline_ project controlled by OSU [original OSU version](https://zenodo.org/record/4641158)(DOI: 10.5281/zenodo.4641158)[[1]](#1). I have completely rewritten the codebase in modern Python/Tensorflow to suit our architecture and to improve logging and performance. __DPI-Scripts__ are available as is and without guarantee. These are intended for in-house use at UAF and at other research outlets. Scripts here have been written by Thomas Kelly, but will likely share some code with others (e.g., Github, Stackoverflow, etc)--but I have attempted to notate original author/inspiration where possible.
 
