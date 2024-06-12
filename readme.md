@@ -74,29 +74,29 @@ So for example:
 __Project-wide__
 - [x] General: use common config file
 - [x] General: implement standard logging throughout
-- [] Develop standard test: configuration
-- [] Develop standard test: files w/ folder structure
+- [ ] Develop standard test: configuration
+- [ ] Develop standard test: files w/ folder structure
 - [x] Documentation: Write readme
-- [] Documentation: Provide project overview description and presentation
-- [] Documentation: Write install and setup guide
+- [ ] Documentation: Provide project overview description and presentation
+- [ ] Documentation: Write install and setup guide
 
 __Training__
-- [] General: deal with overwriting
+- [ ] General: deal with overwriting
 - [x] Model output: implement sidecar JSON
-- [] Model output: safe model summary to file
-- [] Documentation: Detailed
+- [ ] Model output: safe model summary to file
+- [ ] Documentation: Detailed
 
 __Segmentation__
-- [] General: deal with overwriting
-- [] Improve diagnostic image output: full frames w/ ROIs
-- [] Documentation: Detailed
+- [ ] General: deal with overwriting
+- [ ] Improve diagnostic image output: full frames w/ ROIs
+- [ ] Documentation: Detailed
 
 __Classification__
-- [] General: deal with overwriting
-- [] Documentation: Detailed
+- [ ] General: deal with overwriting
+- [ ] Documentation: Detailed
 
 __Post-processing__
-- [] Documentation: Detailed
+- [ ] Documentation: Detailed
 
 
 ## References
