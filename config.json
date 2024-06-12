@@ -7,6 +7,7 @@
         "diagnostic" : false,
         "basename" : "REG",
         "min_perimeter" : 160,
+        "max_perimeter" : 40000,
         "flatfield_q" : 0.1,
         "calibration_image" : "../../raw/camera0/shadowgraph/median_image.jpg"
     },

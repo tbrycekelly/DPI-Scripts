@@ -1,10 +1,10 @@
 import os
 import shutil
 import argparse
-import logging # TBK: logging module
-import logging.config # TBK
-import configparser # TBK: To read config file
-import tqdm # TBK
+import logging
+import logging.config
+import configparser
+import tqdm
 from time import time
 import psutil
 from multiprocessing import Pool
@@ -14,13 +14,13 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 import pathlib
-import os
 from PIL import Image
 import pandas as pd
 import json
 import platform
 import time
 import csv
+import sys
 
 
 def classify(model_file, input_dir):

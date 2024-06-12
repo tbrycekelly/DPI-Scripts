@@ -1,5 +1,34 @@
+#!/usr/bin/env python3
+"""Segmentation script for DPI-Scripts
+
+Usage:
+    ./segmentation.py <dir>
+
+License:
+    MIT License
+
+    Copyright (c) 2023 Thomas Kelly
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+"""
+
 import sys
-#import argparse
 import configparser
 from PIL import Image
 import cv2
@@ -42,16 +71,18 @@ def process_frame(q, config): ## TODO: write metadata file
     3. Remove strongly overlapping bounding boxes
     4. Save cropped targets.
     """
+    logger = setup_logger('worker')
+    logger.info('Started worker thread.')
 
     while True:
         frame = q.get()
-        #logger.debug(f"Pulled frame from queue. Processing {frame.get_name()}.")
+        logger.debug(f"Pulled frame from queue. Processing {frame.get_name()}.")
         
         ## Read img and flatfield
         gray = cv2.cvtColor(frame.read(), cv2.COLOR_BGR2GRAY)
         gray = np.array(gray)
         
-        field = np.quantile(gray, q=float(config['segmentation']['flatfield_q']), axis=0)
+        field = np.quantile(gray, q = ßfloat(config['segmentation']['flatfield_q']), axis = 0)
         gray = (gray / field.T * 255.0)
         gray = gray.clip(0,255).astype(np.uint8)
 
@@ -65,10 +96,12 @@ def process_frame(q, config): ## TODO: write metadata file
         stats = []
 
         if config['segmentation']['diagnostic']:
+            logger.debug('Saving diagnostic images.')
             cv2.imwrite(f'{name}{n:06}-qualtilefield.jpg', gray)
             cv2.imwrite(f'{name}{n:06}-threshold.jpg', thresh)
 
         with open(f'{name[:-1]} statistics.csv', 'a', newline='\n') as outcsv:
+            logger.debug('Writing to statistics.csv.')
             outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
             for i in range(len(cnts)):
                 x,y,w,h = cv2.boundingRect(cnts[i])
@@ -76,7 +109,7 @@ def process_frame(q, config): ## TODO: write metadata file
                     stats = [n, i, x + w/2, y + h/2, w, h]
                     outwritter.writerow(stats)
                 
-                if 2*w + 2*h > int(config['segmentation']['min_perimeter']):
+                if 2*w + 2*h > int(config['segmentation']['min_perimeter']) and 2*w + 2*h < int(config['segmentation']['max_perimeter']) :
                     size = max(w, h)
                     im = Image.fromarray(gray[y:(y+h), x:(x+w)])
                     im_padded = Image.new(im.mode, (size, size), (255))
@@ -128,7 +161,7 @@ def setup_logger(name):
   logger = logging.getLogger(name) 
   logger.setLevel(logging.DEBUG) # the level should be the lowest level set in handlers
 
-  log_format = logging.Formatter('[%(levelname)s] %(asctime)s - %(message)s')
+  log_format = logging.Formatter('[%(levelname)s] (%(thread)d)  %(asctime)s - %(message)s')
 
   stream_handler = logging.StreamHandler()
   stream_handler.setFormatter(log_format)

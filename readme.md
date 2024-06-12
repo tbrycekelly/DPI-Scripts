@@ -26,15 +26,15 @@ Recommend 10Gbe for raw data transfer.
 
 __Nvidia GPU (recommended)__
 - CUDA-compatible GPU with at least 8GB ram
--- RTX 30 series or later (recommended)
--- RTX 3060 12GB (tested)
--- RTX 4060 8GB (tested)
+    - RTX 30 series or later (recommended)
+    - RTX 3060 12GB (tested)
+    - RTX 4060 8GB (tested)
 
 ## 2. Software Requirements
 
 __Operating System (tested)__
 - Windows 10 (or later)
--- (required for CUDA support, optional) Windows Subsystem for Linux 
+    - (required for CUDA support, optional) Windows Subsystem for Linux 
 - Linux Ubuntu 2204 (or later)
 - MacOS 14 (or later)
 
