@@ -5,7 +5,7 @@ These scripts were originally inspired by the _Plankline_ project controlled by 
 
 ## Setup and Documentation
 
-The DPI-Scripts suite of processing scripts is split into three main modules: (1) segmentation, (2) classification, and (3) training; and is unified with the scripts in this repository. 
+The DPI-Scripts suite of processing scripts is split into three main modules: (1) segmentation, (2) classification, and (3) training; and is unified with the scripts in this repository. This pipeline uses OTSU Thresholding for segmentation and a DenseNet121 [[2]](#2) neural network for image classification. 
 
 If you are new to linux and setting up a DPI-Scripts instance for the first time, please consider skimming the [Linux Help Guide](docs/Linux-Help-Guide.md). Otherwise, please follow below for the quick setup guide.
 
@@ -16,6 +16,7 @@ If you are new to linux and setting up a DPI-Scripts instance for the first time
 __Data Storage__
 - Min: 8 TB
 - Recommend SSD and/or RAID0 for high-throughput access.
+    - We collect >200GB per hour per camera (~700GB/hr total)
 
 __System Memory__
 - Min: 16GB
@@ -68,7 +69,38 @@ So for example:
     python3 train.py
     
 
+## Status
+
+__Project-wide__
+[x] General: use common config file
+[x] General: implement standard logging throughout
+[] Develop standard test: configuration
+[] Develop standard test: files w/ folder structure
+[x] Documentation: Write readme
+[] Documentation: Provide project overview description and presentation
+[] Documentation: Write install and setup guide
+
+__Training__
+[] General: deal with overwriting
+[x] Model output: implement sidecar JSON
+[] Model output: safe model summary to file
+[] Documentation: Detailed
+
+__Segmentation__
+[] General: deal with overwriting
+[] Improve diagnostic image output: full frames w/ ROIs
+[] Documentation: Detailed
+
+__Classification__
+[] General: deal with overwriting
+[] Documentation: Detailed
+
+__Post-processing__
+[] Documentation: Detailed
+
 
 ## References
 
-<a id="1">[1]</a> Schmid Moritz S, Daprano Dominic, Jacobson Kyler M, Sullivan Christopher, Briseño-Avena Christian, Luo, Jessica Y, & Cowen, Robert K. (2021). A Convolutional Neural Network based high-throughput image classification pipeline - code and documentation to process plankton underwater imagery using local HPC infrastructure and NSF's XSEDE (1.0.0). Zenodo. https://doi.org/10.5281/zenodo.4641158
+<a id="1">[1]</a> Schmid Moritz S, Daprano Dominic, Jacobson Kyler M, Sullivan Christopher, Briseño-Avena Christian, Luo, Jessica Y, & Cowen, Robert K. (2021). A Convolutional Neural Network based high-throughput image classification pipeline (1.0.0). Zenodo. [https://doi.org/10.5281/zenodo.4641158](https://doi.org/10.5281/zenodo.4641158)
+
+<a id="2">[2]</a> Huang G., Liu Z., van der Maarten L., Weinberger K.Q. (2016). Densely Connected Convolutional Networks. [https://doi.org/10.48550/arXiv.1608.06993](https://doi.org/10.48550/arXiv.1608.06993)
