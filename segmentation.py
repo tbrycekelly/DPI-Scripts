@@ -72,7 +72,7 @@ def process_frame(q, config): ## TODO: write metadata file
     4. Save cropped targets.
     """
     logger = setup_logger('worker')
-    logger.info('Started worker thread.')
+    logger.debug('Started worker thread.')
 
     while True:
         frame = q.get()
@@ -82,7 +82,7 @@ def process_frame(q, config): ## TODO: write metadata file
         gray = cv2.cvtColor(frame.read(), cv2.COLOR_BGR2GRAY)
         gray = np.array(gray)
         
-        field = np.quantile(gray, q = ßfloat(config['segmentation']['flatfield_q']), axis = 0)
+        field = np.quantile(gray, q = float(config['segmentation']['flatfield_q']), axis = 0)
         gray = (gray / field.T * 255.0)
         gray = gray.clip(0,255).astype(np.uint8)
 
@@ -161,7 +161,7 @@ def setup_logger(name):
   logger = logging.getLogger(name) 
   logger.setLevel(logging.DEBUG) # the level should be the lowest level set in handlers
 
-  log_format = logging.Formatter('[%(levelname)s] (%(thread)d)  %(asctime)s - %(message)s')
+  log_format = logging.Formatter('[%(levelname)s] (%(process)d) %(asctime)s - %(message)s')
 
   stream_handler = logging.StreamHandler()
   stream_handler.setFormatter(log_format)

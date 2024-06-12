@@ -208,7 +208,7 @@ def setup_logger(name):
   logger = logging.getLogger(name) 
   logger.setLevel(logging.DEBUG) # the level should be the lowest level set in handlers
 
-  log_format = logging.Formatter('[%(levelname)s] %(asctime)s - %(message)s')
+  log_format = logging.Formatter('[%(levelname)s] (%(process)d) %(asctime)s - %(message)s')
 
   stream_handler = logging.StreamHandler()
   stream_handler.setFormatter(log_format)

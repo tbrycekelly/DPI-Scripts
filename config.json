@@ -15,7 +15,6 @@
         "model_name" : "iota121v1",
         "model_dir" : "../../model",
         "scnn_instances" : 1,
-        "fast_scratch" : "/tmp",
         "batchsize" : 128,
         "image_size" : 128,
         "cpuonly" : false

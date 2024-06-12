@@ -117,7 +117,12 @@ if __name__ == "__main__":
     logger.info(f"Loading model from {model_path}.")
     logger.info(f"Loading model sidecar from {label_path}.")
     model = tf.keras.models.load_model(model_path)
-    
+
+    ## Modify model for feature extraction:
+    # Remove final softmax activation to expose penultimate dense layer. Generate as new model object.
+    x = model.layers[-2].output 
+    model = tf.keras.models.Model(inputs = model.input, outputs = x)
+
     with open(label_path, 'r') as file:
         sidecar = json.load(file)
         logger.debug('Sidecar Loaded.')
@@ -127,7 +132,7 @@ if __name__ == "__main__":
     # ### Setup Folders and run classification on each segment output
     segmentation_dir = os.path.abspath(directory)  # /media/plankline/Data/analysis/segmentation/Camera1/Transect1-reg
     classification_dir = segmentation_dir.replace('segmentation', 'classification')  # /media/plankline/Data/analysis/segmentation/Camera1/Transect1-reg
-    classification_dir = classification_dir + '-' + config["classification"]["model_name"] # /media/plankline/Data/analysis/segmentation/Camera1/Transect1-reg-Plankton
+    classification_dir = classification_dir + '-' + config["classification"]["model_name"] + '-clusters' # /media/plankline/Data/analysis/segmentation/Camera1/Transect1-reg-Plankton
     
     logger.debug(f"Segmentation directory is {segmentation_dir}.")
     logger.debug(f"Classification directory is {classification_dir}.")
@@ -164,17 +169,10 @@ if __name__ == "__main__":
         
         logger.info("Finished loading images. Starting prediction.")
         predictions = model.predict(images, verbose = 0)
-        prediction_labels = np.argmax(predictions, axis=-1)
-        prediction_labels = [sidecar['labels'][i] for i in prediction_labels]
-        df = pd.DataFrame(predictions, index=image_files)
-        df_short = pd.DataFrame(prediction_labels, index=image_files)
-            
-        df.columns = sidecar['labels']
+        df = pd.DataFrame(predictions, index=image_files)    
         df.to_csv(classification_dir + '/' + r2 + '_' + 'prediction.csv', index=True, header=True, sep=',')
-        df_short.columns = ['prediction']
-        df_short.to_csv(classification_dir + '/' + r2 + '_' + 'predictionlist.csv', index=True, header=True, sep=',')
         
         logger.info('Cleaning up unpacked archive files.')
         shutil.rmtree(segmentation_dir + '/' + r2 + "/", ignore_errors=True)
-    logger.info('Finished classification.')
+    logger.info('Finished clustering classification.')
     sys.exit(0) # Successful close

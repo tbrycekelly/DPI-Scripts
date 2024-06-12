@@ -8,66 +8,7 @@ __Python Related:__ We are using python3 throughout the plankline processing scr
     sudo apt-get install python3 python3-devpython3-pip python3-skimage python3-opencv
     pip3 install gpustat
 
-__NVIDIA Requirements for GPGPUs:__ With these commands we first install the app key used to authenticate the nvidia package that we download using wget. The following commands then install the pacakge _cuda keyring_, which allows us to download and install nvidia drivers directly. Finally we install the development tools needed to compile CUDA applications ourselves.
 
-    sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub &&
-    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb
-
-    sudo dpkg -i cuda-keyring_1.0-1_all.deb
-    sudo apt-get update
-    sudo apt-get install libsparsehash-dev cuda-nvcc-11-8 libcublas-11-8 libcublas-dev-11-8
-
-
-### 1.1 Compile and Install OpenCV 3.4
-
-Install the prerequisites
-
-    sudo apt-get install build-essential cmake libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev python3-dev python3-numpy libtbb2 libtbb-dev libsparsehash-dev
-    sudo apt-get install libjpeg-dev libpng-dev libtiff5-dev jasper libdc1394-dev libeigen3-dev libtheora-dev libvorbis-dev libxvidcore-dev libx264-dev sphinx-common libtbb-dev yasm libfaac-dev libopencore-amrnb-dev libopencore-amrwb-dev libopenexr-dev libgstreamer-plugins-base1.0-dev libavutil-dev libavfilter-dev libtesseract-dev libopenblas-dev libopenblas64-dev ccache
-  
-
-Get opencv2 and install it
-
-    cd /opt
-  
-    git clone --branch 3.4 --single-branch https://github.com/opencv/opencv.git
-    git clone --branch 3.4 --single-branch https://github.com/opencv/opencv_contrib.git
-  
-    cd opencv
-    mkdir release
-    cd release
-  
-    cmake -D BUILD_TIFF=ON -D WITH_CUDA=ON -D WITH_OPENGL=OFF -D WITH_OPENCL=OFF -D WITH_IPP=OFF -D WITH_TBB=ON -D BUILD_TBB=ON -D WITH_EIGEN=OFF -D WITH_V4L=OFF -D WITH_VTK=OFF -D BUILD_TESTS=OFF -D BUILD_PERF_TESTS=OFF -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D OPENCV_EXTRA_MODULES_PATH=/opt/opencv_contrib/modules /opt/opencv/
-
-    make -j
-    sudo make install
-  
-    sudo ldconfig
-    pkg-config --modversion opencv
-
-
-## 2. NVIDIA CUDA
-
-    sudo apt-get install nvidia-cuda-toolkit nvtop
-
-__Nvidia Drivers for **Tesla** cards:__
-
-    sudo apt-get install libnvidia-compute-470 nvidia-utils-470 nvidia-driver-470-server
-    sudo ldconfig
-
-
-__Nvidia Drivers for **GTX** cards:__
-
-_TODO: Add link to table of driver versions for each card._
-
-    sudo apt-get install libnvidia-compute-515 nvidia-utils-515 nvidia-driver-515
-    sudo ldconfig
-
-
-You can monitoring active NVIDIA processes with these commands
-
-    nvidia-smi
-    nvtop
 
 
 
@@ -88,21 +29,6 @@ Add "www-port=80", then restart the service:
 The Rstudio Server should now be available at http://<computer name>/. For example, http://plankline-2/. Please see the section below about setting the computer name is it has not already been set.
 
 
-__To install the plankline processing scripts:__ Note, that the default "home" directory for rstudio will be the home directory of the user that you are log in as.
-
-    cd ~
-    git clone https://github.com/tbrycekelly/Plankline-Processing-Scripts.git
-
-From an Rstudio Server instance (i.e. in the browser), open the Plnkline-Processing-Scripts project, and nvigate to the Workflows subdirectory. This is the folder that contains all the basic workflow scripts for processing and analyzing the plankline image and sensor data. Run the _one time setup_ script to install and verify functionality. This only needs to be done once per install, but it is an easy cehck that everything is working as it should.
-
-### Install Netdata
-
-Netdata is a useful system monitor that is accessible over the network (e.g. http://<computer name>:19999/). It gives detailed statistics about a wide variety of computer resources (except for the GPUs).
-
-    wget -O /tmp/netdata-kickstart.sh https://my-netdata.io/kickstart.sh && sh /tmp/netdata-kickstart.sh
-
-Point a broswer at http://<computer name>:19999/ to verify install.
-
 
 
 # Linux Reference Guide
@@ -113,7 +39,7 @@ Point a broswer at http://<computer name>:19999/ to verify install.
 
 __Set password:__
 
-    sudo passwd plankline
+    sudo passwd <username>
 
 __Set hostname:__ This is how you set the computer name. Our current convention is to use lowercase plankline followed by a number: e.g. __plankline-7__
 
@@ -124,11 +50,6 @@ __Add users:__
     sudo adduser XXXX
     sudo usermod -aG sudo XXXXX
     sudo usermod -aG plankline XXXXX
-
-## 3. Misc Setup
-__Setup a scratch filesystem:__ To setup a very fast scratch drive, add the following mount configuration to `/etc/fstab`
-
-    tmpfs /tmp tmpfs defaults,noatime,nosuid,nodev,mode=777,size=60G 0 0
 
 
 __Setup Automounting:__ On Ubuntu, automounting is configured by the fstab file and is automatically run during system startup. 
@@ -143,25 +64,6 @@ __Setup Automounting:__ On Ubuntu, automounting is configured by the fstab file 
     sudo mount -a
 
     sudo setfacl -PRdm u::rwx,g::rw,o::rw /media/plankline
-
-
-__Set swapiness:__ This is a minor performance tweak to diswade the computer from ever trying to use hard drive swap space over system memory. These computer generally have plenty of memory and have no need for offloading to physical media.
-
-    sudo nano /etc/sysctl.conf
-
-add "vm.swappiness=1" to the file.
-
-
-## 4. Setup Backups
-
-Timeshift is a useful tool for maintaining backups of linux directories. Only needs to be done once per computer.
-
-    sudo apt-get install timeshift
-    sudo timeshift --create
-
-Using NoMachine (or local monitor), open timshift and setup automatic scheduled backups. I'd recommend keeping 5 daily, 4 weekly, and 12 monthly backups. Or, using the terminal:
-
-    sudo nano /etc/timeshift/timeshift.json
 
 
 
@@ -216,19 +118,6 @@ Additional network inspection can be performed by ethtool:
     ethtool <interface>
     ethtool eno1
 
-
-__Setup NFS:__ (Linux and Windows networking shares) _work in progress_
-
-_On a windows computer, you need to install the NFS support as an optional windows add-on. In the start menu > Turn Windows Features On and Off > NFS Support. Install NFS client. _
-
-    sudo apt install nfs-kernel-server
-    sudo systemctl start nfs-kernel-server.service
-
-    nano /etc/exports
-
-Add the following lines:
-
-    /data    *(rw,sync,subtree_check)
 
 __Setup Samba:__ (Windows SMB)
 
