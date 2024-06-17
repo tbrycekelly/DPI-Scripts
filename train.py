@@ -190,23 +190,25 @@ def setup_logger(name):
   logger.setLevel(logging.DEBUG) # the level should be the lowest level set in handlers
 
   log_format = logging.Formatter('[%(levelname)s] (%(process)d) %(asctime)s - %(message)s')
-
+  
+  if not os.path.exists(config['general']['log_path']):
+    os.makedirs(config['general']['log_path'])
   stream_handler = logging.StreamHandler()
   stream_handler.setFormatter(log_format)
   stream_handler.setLevel(logging.INFO)
   logger.addHandler(stream_handler)
 
-  debug_handler = logging.FileHandler(f'../../logs/training {name} debug.log')
+  debug_handler = logging.TimedRotatingFileHandler(f"{config['general']['log_path']}training {name} debug.log", interval = 1, backupCount = 14)
   debug_handler.setFormatter(log_format)
   debug_handler.setLevel(logging.DEBUG)
   logger.addHandler(debug_handler)
 
-  info_handler = logging.FileHandler(f'../../logs/training {name} info.log')
+  info_handler = logging.TimedRotatingFileHandler(f"{config['general']['log_path']}training {name} info.log", interval = 1, backupCount = 14)
   info_handler.setFormatter(log_format)
   info_handler.setLevel(logging.INFO)
   logger.addHandler(info_handler)
 
-  error_handler = logging.FileHandler(f'../../logs/training {name} error.log')
+  error_handler = logging.TimedRotatingFileHandler(f"{config['general']['log_path']}training {name} error.log", interval = 1, backupCount = 14)
   error_handler.setFormatter(log_format)
   error_handler.setLevel(logging.ERROR)
   logger.addHandler(error_handler)
@@ -244,17 +246,35 @@ if __name__ == "__main__":
     model, history = train_model(model, config, train_ds, val_ds)
     timer['model_train_end'] = time.time()
     logger.info('Model trained. Running post-processing steps.')
+
+    model_save_pathname = config['training']['model_path'] + '/' + config['training']['model_name'] + '.keras'
+    json_save_pathname = config['training']['model_path'] + '/' + config['training']['model_name'] + '.json'
+    if os.path.exists(model_save_pathname):
+        if config['training']['overwrite']:
+            logger.info(f"Saved keras file exists for {config['training']['model_name']}. Overwrite is enabled so existing file is being removed.")
+            os.remove(model_save_pathname)
+            logger.debug(f"Deleted file {model_save_pathname}.")
+            if os.path.exists(json_save_pathname):
+                os.remove(json_save_pathname)
+                logger.debug(f"Deleted file {json_save_pathname}.")
+        else :
+            config['training']['model_name'] = config['training']['model_name'] + session_id ## Append session ID to model_name from here on out!
+            logger.warn(f"Saved keras file exists for {config['training']['model_name']}. Overwrite is not indicated so current model will be saved as {config['training']['model_name'] + '.keras'}.")
+            model_save_pathname = config['training']['model_path'] + '/' + config['training']['model_name'] + '.keras'
+            config['training']['model_path'] + '/' + config['training']['model_name'] + '.json'
     
     logger.debug(f"Saving model keras file to {config['training']['model_path']}.")
     timer['model_save_start'] = time.time()
-    model.save(config['training']['model_path'] + '/' + config['training']['model_name'] + '.keras')
+    model.save(model_save_pathname)
     timer['model_save_end'] = time.time()
     logger.debug(f"Model saved to {config['training']['model_name'] + '.keras'}.")
 
     logger.debug('Running preditions on validation dataset.')
     predictions = model.predict(val_ds)
+    prediction_matrix = pd.DataFrame(predictions, index = y, columns = train_ds.class_names)
+    prediction_matrix.to_csv(config['training']['model_path'] + '/' + config['training']['model_name'] + ' predictions.csv')
+
     predictions = np.argmax(predictions, axis = -1)
-    
     logger.debug('Developing confusion matrix from validation dataset.')
     confusion_matrix = tf.math.confusion_matrix(y, predictions)
     confusion_matrix = pd.DataFrame(confusion_matrix, index = train_ds.class_names, columns = train_ds.class_names)
@@ -280,13 +300,13 @@ if __name__ == "__main__":
             'Processor' : platform.processor()
         },
         'timings' : timer
-        #'history' : pd.DataFrame(history.history)
     }
     
     logger.debug(f"Writing model sidecar to {config['training']['model_path']}.")
     json_object = json.dumps(sidecar, indent=4)
-    with open(config['training']['model_path'] + '/' + config['training']['model_name'] + '.json', "w") as outfile:
+    with open(json_save_pathname, "w") as outfile:
         outfile.write(json_object)
+        logger.debug("Sidecar writting finished.")
     
     logger.debug('Training finished.')
     sys.exit(0) # Successful close
