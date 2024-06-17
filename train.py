@@ -52,6 +52,8 @@ import time
 import csv
 import sys
 
+## Source import.py
+exec(open("./imports.py").read())
 
 def classify(model_file, input_dir):
     model = tf.keras.models.load_model(model_file)
@@ -183,50 +185,18 @@ def init_ts(config):
     return(train_ds, val_ds)
 
 
-def setup_logger(name):
-  # The name should be unique, so you can get in in other places
-  # by calling `logger = logging.getLogger('com.dvnguyen.logger.example')
-  logger = logging.getLogger(name) 
-  logger.setLevel(logging.DEBUG) # the level should be the lowest level set in handlers
-
-  log_format = logging.Formatter('[%(levelname)s] (%(process)d) %(asctime)s - %(message)s')
-  
-  if not os.path.exists(config['general']['log_path']):
-    os.makedirs(config['general']['log_path'])
-  stream_handler = logging.StreamHandler()
-  stream_handler.setFormatter(log_format)
-  stream_handler.setLevel(logging.INFO)
-  logger.addHandler(stream_handler)
-
-  debug_handler = logging.TimedRotatingFileHandler(f"{config['general']['log_path']}training {name} debug.log", interval = 1, backupCount = 14)
-  debug_handler.setFormatter(log_format)
-  debug_handler.setLevel(logging.DEBUG)
-  logger.addHandler(debug_handler)
-
-  info_handler = logging.TimedRotatingFileHandler(f"{config['general']['log_path']}training {name} info.log", interval = 1, backupCount = 14)
-  info_handler.setFormatter(log_format)
-  info_handler.setLevel(logging.INFO)
-  logger.addHandler(info_handler)
-
-  error_handler = logging.TimedRotatingFileHandler(f"{config['general']['log_path']}training {name} error.log", interval = 1, backupCount = 14)
-  error_handler.setFormatter(log_format)
-  error_handler.setLevel(logging.ERROR)
-  logger.addHandler(error_handler)
-  return logger
-
-
 if __name__ == "__main__":
     with open('config.json', 'r') as f:
         config = json.load(f)
 
-    logger = setup_logger('main')
+    logger = setup_logger('Training (main)', config)
 
     v_string = "V2024.05.22"
     session_id = str(datetime.datetime.now().strftime("%Y%m%d_%H%M%S")).replace(':', '')
     
     logger.info(f"Starting CNN Model Training Script {v_string}")
     logger.debug(f"Session ID is {session_id}.")
-    timer = {'init' : time.time()}
+    timer = {'init' : time()}
 
     # ## Load training and validation data sets
     train_ds, val_ds = init_ts(config)
@@ -235,16 +205,16 @@ if __name__ == "__main__":
     logger.debug(f"Datasets have {len(train_ds.class_names)} categories.")
 
     logger.debug('Attempting to load or initialize model.')
-    timer['model_load_start'] = time.time()
+    timer['model_load_start'] = time()
     model = load_model(config, len(train_ds.class_names))
-    timer['model_load_end'] = time.time()
+    timer['model_load_end'] = time()
     logger.debug('Model loaded successfully.')
 
     logger.info('Starting to train model.')
     
-    timer['model_train_start'] = time.time()
+    timer['model_train_start'] = time()
     model, history = train_model(model, config, train_ds, val_ds)
-    timer['model_train_end'] = time.time()
+    timer['model_train_end'] = time()
     logger.info('Model trained. Running post-processing steps.')
 
     model_save_pathname = config['training']['model_path'] + '/' + config['training']['model_name'] + '.keras'
@@ -252,10 +222,10 @@ if __name__ == "__main__":
     if os.path.exists(model_save_pathname):
         if config['training']['overwrite']:
             logger.info(f"Saved keras file exists for {config['training']['model_name']}. Overwrite is enabled so existing file is being removed.")
-            os.remove(model_save_pathname)
+            delete_file(model_save_pathname, logger)
             logger.debug(f"Deleted file {model_save_pathname}.")
             if os.path.exists(json_save_pathname):
-                os.remove(json_save_pathname)
+                delete_file(json_save_pathname, logger)
                 logger.debug(f"Deleted file {json_save_pathname}.")
         else :
             config['training']['model_name'] = config['training']['model_name'] + session_id ## Append session ID to model_name from here on out!
@@ -264,9 +234,9 @@ if __name__ == "__main__":
             config['training']['model_path'] + '/' + config['training']['model_name'] + '.json'
     
     logger.debug(f"Saving model keras file to {config['training']['model_path']}.")
-    timer['model_save_start'] = time.time()
+    timer['model_save_start'] = time()
     model.save(model_save_pathname)
-    timer['model_save_end'] = time.time()
+    timer['model_save_end'] = time()
     logger.debug(f"Model saved to {config['training']['model_name'] + '.keras'}.")
 
     logger.debug('Running preditions on validation dataset.')
@@ -281,7 +251,7 @@ if __name__ == "__main__":
     confusion_matrix.to_csv(config['training']['model_path'] + '/' + config['training']['model_name'] + ' confusion.csv')
     logger.debug(f"Confusion matrix saved to {config['training']['model_path'] + '/' + config['training']['model_name'] + ' confusion.csv'}")
     
-    timer['close'] = time.time()
+    timer['close'] = time()
     
     logger.debug('Generating model saidecar.')
     ## Generate sidecar dictionary:

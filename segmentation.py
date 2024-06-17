@@ -28,21 +28,8 @@ License:
     SOFTWARE.
 """
 
-import sys
-import configparser
-from PIL import Image
-import cv2
-import os
-import numpy as np
-import csv
-from multiprocessing import Process, Queue
-import tqdm
-import shutil
-import random
-import json
-import logging
-from logging.handlers import TimedRotatingFileHandler
-from time import time
+## Source import.py
+exec(open("./imports.py").read())
 
 class Frame:
     def __init__(self, fpath, name, frame, n):
@@ -73,7 +60,7 @@ def process_frame(q, config): ## TODO: write metadata file
     3. Remove strongly overlapping bounding boxes
     4. Save cropped targets.
     """
-    logger = setup_logger('worker', config)
+    logger = setup_logger('Segmentation (Worker)', config)
     logger.debug('Started worker thread.')
 
     while True:
@@ -147,16 +134,17 @@ def process_avi(avi_path, segmentation_dir, config, q):
     _, filename = os.path.split(avi_path)
     output_path = segmentation_dir + os.path.sep + filename + os.path.sep
     statistics_filepath = output_path[:-1] + ' statistics.csv'
+    logger = logging.getLogger('Segmentation (Worker)')
     
-    if is_file_above_minimum_size(statistics_filepath, 0):
+    if is_file_above_minimum_size(statistics_filepath, 0, logger):
         if config['segmentation']['overwrite']:
             logger.info(f"Config file enables overwriting, removing files for {filename}.")
             if os.path.exists(output_path):
-                shutil.rmtree(output_path)
+                delete_file(output_path, logger)
             if os.path.exists(output_path[:-1] + '.zip'):
-                os.remove(output_path[:-1] + '.zip')
+                delete_file(output_path[:-1] + '.zip', logger)
             if os.path.exists(output_path[:-1] + ' statistics.csv'):
-                os.remove(output_path[:-1] + ' statistics.csv')
+                delete_file(output_path[:-1] + ' statistics.csv', logger)
 
         else:
             logger.info(f"Overwritting is not allowed and prior statistics file exists. Skipping {filename}.")
@@ -185,69 +173,20 @@ def process_avi(avi_path, segmentation_dir, config, q):
         else:
             break
 
-def setup_logger(name, config):
-    # The name should be unique, so you can get in in other places
-    # by calling `logger = logging.getLogger('com.dvnguyen.logger.example')
-    logger = logging.getLogger(name) 
-    logger.setLevel(logging.DEBUG) # the level should be the lowest level set in handlers
-
-    log_format = logging.Formatter('[%(levelname)s] (%(process)d) %(asctime)s - %(message)s')
-    
-    if not os.path.exists(config['general']['log_path']):
-        os.makedirs(config['general']['log_path'])
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(log_format)
-    stream_handler.setLevel(logging.INFO)
-    logger.addHandler(stream_handler)
-
-    debug_handler = TimedRotatingFileHandler(f"{config['general']['log_path']}segmentation {name} debug.log", interval = 1, backupCount = 14)
-    debug_handler.setFormatter(log_format)
-    debug_handler.setLevel(logging.DEBUG)
-    logger.addHandler(debug_handler)
-
-    info_handler = TimedRotatingFileHandler(f"{config['general']['log_path']}segmentation {name} info.log", interval = 1, backupCount = 14)
-    info_handler.setFormatter(log_format)
-    info_handler.setLevel(logging.INFO)
-    logger.addHandler(info_handler)
-
-    error_handler = TimedRotatingFileHandler(f"{config['general']['log_path']}segmentation {name} error.log", interval = 1, backupCount = 14)
-    error_handler.setFormatter(log_format)
-    error_handler.setLevel(logging.ERROR)
-    logger.addHandler(error_handler)
-    return logger
-
-
-def is_file_above_minimum_size(file_path, min_size):
-    """
-    Check if the file at file_path is larger than min_size bytes.
-
-    :param file_path: Path to the file
-    :param min_size: Minimum size in bytes
-    :return: True if file size is above min_size, False otherwise
-    """
-    if not os.path.exists(file_path):
-        return False
-    try:
-        file_size = os.path.getsize(file_path)
-        return file_size > min_size
-    except OSError as e:
-        print(f"Error: {e}")
-        return False
-
 
 if __name__ == "__main__":
-
-    directory = sys.argv[1]
-    if not os.path.exists(directory):
-        stop(f'Specified path ({directory}) does not exist. Stopping.')
 
     with open('config.json', 'r') as f:
         config = json.load(f)
 
     v_string = "V2024.05.21"
-
-    logger = setup_logger('main', config)
+    logger = setup_logger('Segmentation (Main)', config)
     logger.info(f"Starting segmentation script {v_string}")
+
+    directory = sys.argv[1]
+    if not os.path.exists(directory):
+        logger.error(f'Specified path ({directory}) does not exist. Stopping.')
+        sys.exit(1)
 
     ## Determine directories
     raw_dir = os.path.abspath(directory) # /media/plankline/Data/raw/Camera0/test1
@@ -289,7 +228,7 @@ if __name__ == "__main__":
         n = 1
         init_time = time()
         for av in avis:
-            if is_file_above_minimum_size(av, 1024):
+            if is_file_above_minimum_size(av, 1024, logger):
                 start_time = time()
                 process_avi(av, segmentation_dir, config, q)
                 end_time = time()
@@ -308,10 +247,10 @@ if __name__ == "__main__":
             _, filename = os.path.split(av)
             output_path = segmentation_dir + os.path.sep + filename + os.path.sep
             logger.debug(f"Compressing to archive {filename + '.zip.'}")
-            if is_file_above_minimum_size(segmentation_dir + os.path.sep + filename + '.zip', 0):
+            if is_file_above_minimum_size(segmentation_dir + os.path.sep + filename + '.zip', 0, logger):
                 if config['segmentation']['overwrite']:
                     logger.warn(f"archive exists for {filename} and overwritting is allowed. Deleting old archive.")
-                    os.remove(segmentation_dir + os.path.sep + filename + '.zip')
+                    delete_file(segmentation_dir + os.path.sep + filename + '.zip', logger)
                 else:
                     logger.warn(f"archive exists for {filename} and overwritting is allowed. Skipping Archiving")
                     continue
@@ -319,7 +258,7 @@ if __name__ == "__main__":
             shutil.make_archive(segmentation_dir + os.path.sep + filename, 'zip', output_path)
             if not config['segmentation']['diagnostic']:
                 logger.debug(f"Cleaning up output path: {output_path}.")
-                shutil.rmtree(output_path, ignore_errors=True)
+                delete_file(output_path, logger)
 
     logger.info(f"Finished segmentation. Total time: {(time() - init_time)/60:.1f} minutes.")
     sys.exit(0) # Successful close

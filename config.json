@@ -30,7 +30,7 @@
         "model_path": "../model/",
         "image_size": 128,
         "start" : 0,
-        "stop" : 200,
+        "stop" : 1,
         "validationSetRatio" : 0.2,
         "batchsize" : 64,
         "seed": 123,
