@@ -228,8 +228,8 @@ if __name__ == "__main__":
                 delete_file(json_save_pathname, logger)
                 logger.debug(f"Deleted file {json_save_pathname}.")
         else :
-            config['training']['model_name'] = config['training']['model_name'] + session_id ## Append session ID to model_name from here on out!
-            logger.warn(f"Saved keras file exists for {config['training']['model_name']}. Overwrite is not indicated so current model will be saved as {config['training']['model_name'] + '.keras'}.")
+            config['training']['model_name'] = config['training']['model_name'] + '-' + session_id ## Append session ID to model_name from here on out!
+            logger.warn(f"Saved keras file exists. Overwrite is not indicated so current model will be saved as {config['training']['model_name'] + '.keras'}.")
             model_save_pathname = config['training']['model_path'] + '/' + config['training']['model_name'] + '.keras'
             config['training']['model_path'] + '/' + config['training']['model_name'] + '.json'
     
