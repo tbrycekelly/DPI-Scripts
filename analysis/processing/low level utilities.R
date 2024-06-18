@@ -71,3 +71,12 @@ logModel = function(path) {
 loadLog = function(path) {
   
 }
+
+
+pathConcat = function(...) {
+  path = paste0(list(...), collapse = '')
+  path = paste0(path, '/')
+  path = gsub('//', '/', path)
+  path
+}
+

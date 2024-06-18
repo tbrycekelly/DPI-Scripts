@@ -11,15 +11,16 @@ camera = 'camera0'
 transect = 'test1'
 segmentationName = 'REG'
 modelName = 'iota121v1'
+dataPath = '../../'
 
 
 #### Autopilot from here:
 
 sourceFiles = list(
-  rawPath = paste0('../../raw/camera0/', transect, '/'),
-  segmentationPath = paste0('../../analysis/', camera, '/segmentation/', transect, '-', segmentationName, '/'),
-  classificationPath = paste0('../../analysis/', camera, '/classification/', transect, '-', segmentationName, '-', modelName, '/'),
-  modelPath = '../model'
+  rawPath = pathConcat(dataPath, '/raw/camera0/', transect),
+  segmentationPath = pathConcat(dataPath, '/analysis/', camera, '/segmentation/', transect, '-', segmentationName),
+  classificationPath = pathConcat(dataPath, '/analysis/', camera, '/classification/', transect, '-', segmentationName, '-', modelName),
+  modelPath = pathConcat(dataPath, '/model/')
 )
 
 sourceFiles$segmentationFiles = list.files(sourceFiles$segmentationPath, pattern = 'statistics.csv')
@@ -58,7 +59,6 @@ for (i in 1:length(sourceFiles$classificationFiles)) {
 unlink(extractName, recursive = T)
 
 ## Subdivide large folders
-nMax = 200
 
 for (folder in list.dirs(outputDir)[-1]) {
   pulledRois = sample(list.files(folder, pattern = '.png'))
@@ -72,7 +72,7 @@ for (folder in list.dirs(outputDir)[-1]) {
       index = ((nCurrent - 1) * nMax + 1):min(nCurrent * nMax, length(pulledRois))
       file.copy(from = paste0(folder, '/', pulledRois[index]),
                 to = paste0(folder, '/', nCurrent, '/', pulledRois[index]))
-      file.remove(paste0(folder, '/', pulledRois[index])) # Clean up
+      unlink(paste0(folder, '/', pulledRois[index])) # Clean up
     }
   }
   
