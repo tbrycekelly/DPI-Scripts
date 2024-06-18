@@ -18,7 +18,7 @@ log = read.csv(gsub('.keras', '.log', model.path))
   lines(log$epoch, log$val_accuracy, lwd = 2, col = 'blue')
   lines(runmed(log$epoch,15), runmed(log$val_accuracy, 15), lwd = 2, col = 'black')
   
-  grid()
+  grid()c
   
   
   plot(log$epoch,
