@@ -1,17 +1,17 @@
 {
     "general" : {
         "dir_permissions" : 511,
-        "config_name" : "v1.0",
+        "config_name" : "v1.1",
         "log_path" : "../logs/"
     },
     "segmentation" : {
         "diagnostic" : false,
         "basename" : "REG",
-        "min_perimeter" : 160,
+        "min_perimeter" : 100,
         "max_perimeter" : 40000,
-        "min_perimeter_statsonly" : 12,
+        "min_perimeter_statsonly" : 20,
         "flatfield_q" : 0.1,
-        "calibration_image" : "../../raw/camera0/shadowgraph/median_image.jpg",
+        "calibration_image" : "../raw/camera0/shadowgraph/median_image.jpg",
         "overwrite" : false
     },
     "classification" : {
@@ -30,8 +30,8 @@
         "model_path": "../model/",
         "image_size": 128,
         "start" : 0,
-        "stop" : 1,
-        "validationSetRatio" : 0.2,
+        "stop" : 100,
+        "validationSetRatio" : 0.25,
         "batchsize" : 64,
         "seed": 123,
         "overwrite" : false
