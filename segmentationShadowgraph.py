@@ -40,6 +40,10 @@ import shutil
 import random
 import logging
 import json
+from time import time
+
+## Source import.py
+exec(open("./imports.py").read())
 
 class Frame:
     def __init__(self, fpath, name, frame, cal, n):
@@ -74,7 +78,7 @@ def process_frame(q, config): ## TODO: write metadata file
     3. Remove strongly overlapping bounding boxes
     4. Save cropped targets.
     """
-    logger = setup_logger('process')
+    logger = setup_logger('Shadowgraph Segmentation (worker)', config)
     logger.debug("Process started.")
     
     while True:
@@ -161,7 +165,7 @@ def process_image_dir(img_path, segmentation_dir, config, q):
     bkg = np.array(cv2.imread(config['segmentation']['calibration_image']))
     
     for f in os.listdir(img_path):
-      if f.endswith(('.jpg', '.jpeg', '.png')):
+      if f.endswith(('.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG')):
           newframe = Frame(f, output_path, img_path + os.path.sep + f, bkg, f)
           q.put(newframe, block = True)
           logger.debug(f"Added image {f} to queue.")
@@ -173,19 +177,22 @@ def generate_median_image(directory, output_dir):
     """
     
     """
+    logger = logging.getLogger('Shadowgraph Segmentation (main)')
     # Get a list of all image file names in the directory
-    image_files = [file for file in os.listdir(directory) if file.endswith(('.jpg', '.jpeg', '.png'))]
+    image_files = [file for file in os.listdir(directory) if file.endswith(('.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG'))]
     
     if not image_files:
         logger.error("No image files found in the directory. Cannot generate calibration image!")
         return
-
-    image_files = random.sample(image_files, min([100, len(image_files)]))
+    nImages = min([100, len(image_files)])
+    image_files = random.sample(image_files, nImages)
+    logger.debug(f"Generating calibration image with {nImages} image files.")
     
     # Read the first image to get the dimensions
     first_image_path = os.path.join(directory, image_files[0])
     first_image = cv2.imread(first_image_path, cv2.IMREAD_GRAYSCALE)
     height, width = first_image.shape
+    logger.debug(f"Calibration image will have size=({width}x{height}).")
 
     # Initialize an array to store all images
     all_images = np.zeros((len(image_files), height, width), dtype=np.uint8)
@@ -198,54 +205,26 @@ def generate_median_image(directory, output_dir):
 
     # Compute the median image
     median_image = np.median(all_images, axis=0).astype(np.uint8)
-    cv2.imwrite(output_dir + os.path.sep + 'median_image.jpg', median_image)
-    print("New median (calibration) image saved as 'median_image.jpg'.")
-
-
-def setup_logger(name):
-  # The name should be unique, so you can get in in other places
-  # by calling `logger = logging.getLogger('com.dvnguyen.logger.example')
-  logger = logging.getLogger(name) 
-  logger.setLevel(logging.DEBUG) # the level should be the lowest level set in handlers
-
-  log_format = logging.Formatter('[%(levelname)s] (%(process)d) %(asctime)s - %(message)s')
-
-  stream_handler = logging.StreamHandler()
-  stream_handler.setFormatter(log_format)
-  stream_handler.setLevel(logging.INFO)
-  logger.addHandler(stream_handler)
-
-  debug_handler = logging.FileHandler(f'../../logs/segmentationShadowgraph {name} debug.log')
-  debug_handler.setFormatter(log_format)
-  debug_handler.setLevel(logging.DEBUG)
-  logger.addHandler(debug_handler)
-
-  info_handler = logging.FileHandler(f'../../logs/segmentationShadowgraph {name} info.log')
-  info_handler.setFormatter(log_format)
-  info_handler.setLevel(logging.INFO)
-  logger.addHandler(info_handler)
-
-  error_handler = logging.FileHandler(f'../../logs/segmentationShadowgraph {name} error.log')
-  error_handler.setFormatter(log_format)
-  error_handler.setLevel(logging.ERROR)
-  logger.addHandler(error_handler)
-  return logger
-
+    #if not os.path.exists(output_dir):
+    #    os.makedirs(output_dir, int(config['general']['dir_permissions']), exist_ok = True)
+    #    logger.debug(f"Created new output directory for median image: {output_dir}.")
+    cv2.imwrite(output_dir, median_image)
+    logger.info(f"New median (calibration) image saved as {output_dir}.")
 
 if __name__ == "__main__":
-
-    directory = sys.argv[1]
-    if not os.path.exists(directory):
-        stop(f'Specified path ({directory}) does not exist. Stopping.')
-
 
     with open('config.json', 'r') as f:
         config = json.load(f)
 
     v_string = "V2024.05.21"
 
-    logger = setup_logger('main')
+    logger = setup_logger('Shadowgraph Segmentation (main)', config)
     logger.info(f"Starting Shadowgraph segmentation script {v_string}")
+
+    directory = sys.argv[1]
+    if not os.path.exists(directory):
+        logger.error(f'Specified path ({directory}) does not exist. Stopping.')
+        sys.exit(1)
 
     ## Determine directories
     raw_dir = os.path.abspath(directory) # /media/plankline/Data/raw/Camera0/test1
@@ -285,12 +264,19 @@ if __name__ == "__main__":
     if len(imgsets) > 0:
         ## Process each imgset:
         logger.info(f'Starting processing on {len(imgsets)} subfolders.')
-        for im in tqdm.tqdm(imgsets):
+        init_time = time()
+        n = 1
+        for im in imgsets:
+            start_time = time()
             if not os.path.exists(config['segmentation']['calibration_image']):
                 logger.info('Generating calibration image.')
                 generate_median_image(im, config['segmentation']['calibration_image'])
+
             logger.debug(f"Processing image directory {im}.")
             process_image_dir(im, segmentation_dir, config, q)
+            end_time = time()
+            logger.info(f"Processed {n} of {len(imgsets)} files.\t\t Iteration: {end_time-start_time:.2f} seconds\t Estimated remainder: {(end_time - init_time)/n*(len(imgsets)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time)/60:.1f} minutes.")
+            n+=1
 
     logger.info('Joining worker processes.')
     for worker in workers:
@@ -298,14 +284,14 @@ if __name__ == "__main__":
     
     if len(imgsets) > 0:
         logger.info('Archiving results and cleaning up.')
-        for im in tqdm.tqdm(imgsets):
+        for im in imgsets:
             _, filename = os.path.split(im)
             output_path = segmentation_dir + os.path.sep + filename + os.path.sep
             logger.debug(f"Compressing to archive {filename + '.zip.'}")
             shutil.make_archive(segmentation_dir + os.path.sep + filename, 'zip', output_path)
             if not config['segmentation']['diagnostic']:
                 logger.debug(f"Cleaning up output path: {output_path}.")
-                shutil.rmtree(output_path, ignore_errors=True)
+                delete_file(output_path, logger)
     
     logger.info('Finished segmentation.')
     sys.exit(0) # Successful close  

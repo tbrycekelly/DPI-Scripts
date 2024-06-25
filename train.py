@@ -55,31 +55,6 @@ import sys
 ## Source import.py
 exec(open("./imports.py").read())
 
-def classify(model_file, input_dir):
-    model = tf.keras.models.load_model(model_file)
-
-    pad(input_dir)
-    images = []
-    image_files = []
-    for img in os.listdir(input_dir):
-        image_files.append(img)
-        img = tf.keras.preprocessing.image.load_img(input_dir + img,
-         target_size=(int(config['training']['image_size']),
-         int(config['training']['image_size'])), color_mode='grayscale')
-        #img = img.img_to_array(img)
-        img = np.expand_dims(img, axis=0)
-        images.append(img)
-    images = np.vstack(images)
-
-    predictions = model.predict(images)
-    prediction_labels = np.argmax(predictions, axis=-1)
-    np.savetxt('prediction.csv', predictions, delimiter=',')
-
-    with open('prediction_names.csv', newline='', mode='w') as csvfile:
-        csvwritter = csv.writer(csvfile, delimiter='\n')
-        csvwritter.writerow(image_files)
-
-
 def conv_block(x, growth_rate):
     x1 = tf.keras.layers.BatchNormalization()(x)
     x1 = tf.keras.layers.Activation('relu')(x1)
@@ -112,26 +87,26 @@ def augmentation_block(x):
     x = tf.keras.layers.RandomContrast(0.5)(x)
     return x
 
-def DenseNet121(input_shape, num_classes):
+def DenseNet(input_shape, num_classes):
 
     ## Init and Augmentation
     inputs = tf.keras.layers.Input(shape=input_shape)
     x = augmentation_block(inputs)
-
+    
     # Initial convolution layer
     x = tf.keras.layers.Conv2D(128, (7, 7), strides=(2, 2), padding='same')(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Activation('relu')(x)
     x = tf.keras.layers.MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same')(x)
-    
-    ## DenseNet121 (116 internal)
+
+    ## DenseNet201
     x = dense_block(x, num_layers=6, growth_rate=32)
     x = transition_block(x, compression=0.5)
     x = dense_block(x, num_layers=12, growth_rate=32)
     x = transition_block(x, compression=0.5)
-    x = dense_block(x, num_layers=24, growth_rate=32)
+    x = dense_block(x, num_layers=48, growth_rate=32)
     x = transition_block(x, compression=0.5)
-    x = dense_block(x, num_layers=16, growth_rate=32)
+    x = dense_block(x, num_layers=32, growth_rate=32)
 
     # Final layers
     x = tf.keras.layers.BatchNormalization()(x)
@@ -150,9 +125,7 @@ def load_model(config, num_classes):
 
 
 def init_model(num_classes, img_height, img_width):
-
-    model = DenseNet121([img_height, img_width, 1], num_classes)
-    
+    model = DenseNet([img_height, img_width, 1], num_classes)
     model.compile(optimizer='adam', loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False), metrics=['accuracy'])
     model.summary()
     return(model)
