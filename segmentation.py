@@ -98,8 +98,8 @@ def process_frame(q, config): ## TODO: write metadata file
                     if len(cnts[i]) >= 5:  # Minimum number of points required to fit an ellipse
                         ellipse = cv2.fitEllipse(cnts[i])
                         center, axes, angle = ellipse
-                        major_axis_length = max(axes)
-                        minor_axis_length = min(axes)
+                        major_axis_length = round(max(axes),1)
+                        minor_axis_length = round(min(axes),1)
                     else :
                         major_axis_length = -1
                         minor_axis_length = -1
