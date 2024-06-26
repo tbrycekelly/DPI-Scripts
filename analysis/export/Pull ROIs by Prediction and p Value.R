@@ -3,36 +3,37 @@ source('processing/mid level utilities.R')
 
 #### User input: 
 
-outputDir = '../../export/pull'
+outputDir = '../../export/SewardLine_Summer22_camera1_thesis201v3'
 nMax = 1000 # Maximum number of images per pull folder
 pMin = 0.0 # minimum probability for pulled images (0 = pull all, 0.9 = 90% confidence)
 
-camera = 'camera0'
-transect = 'test1'
+camera = 'camera1'
+transect = 'SewardLine_Summer22'
 segmentationName = 'REG'
-modelName = 'iota121v1'
-dataPath = '../../'
+modelName = 'thesis201v3'
 
 
 #### Autopilot from here:
 
 sourceFiles = list(
-  rawPath = pathConcat(dataPath, '/raw/camera0/', transect),
-  segmentationPath = pathConcat(dataPath, '/analysis/', camera, '/segmentation/', transect, '-', segmentationName),
-  classificationPath = pathConcat(dataPath, '/analysis/', camera, '/classification/', transect, '-', segmentationName, '-', modelName),
-  modelPath = pathConcat(dataPath, '/model/')
+  rawPath = paste0('../../raw/camera0/', transect, '/'),
+  segmentationPath = paste0('../../analysis/', camera, '/segmentation/', transect, '-', segmentationName, '/'),
+  classificationPath = paste0('../../analysis/', camera, '/classification/', transect, '-', segmentationName, '-', modelName, '/'),
+  modelPath = '../model'
 )
 
 sourceFiles$segmentationFiles = list.files(sourceFiles$segmentationPath, pattern = 'statistics.csv')
 sourceFiles$classificationFiles = list.files(sourceFiles$classificationPath, pattern = 'prediction.csv')
-sourceFiles$rawFiles = list.files(sourceFiles$rawPath, pattern = '.avi')
 
 
 if (!dir.exists(outputDir)) {
   dir.create(outputDir, recursive = T)
 }
 
+initTime = Sys.time()
 for (i in 1:length(sourceFiles$classificationFiles)) {
+  startTime = Sys.time()
+  
   predictions = read.csv(paste0(sourceFiles$classificationPath, sourceFiles$classificationFiles[i]), header = T)
   
   ## Extract ROIs
@@ -54,12 +55,18 @@ for (i in 1:length(sourceFiles$classificationFiles)) {
   l = pmax >= pMin
   
   file.copy(from = paste0(extractName, '/', predictions$X)[l], 
-            to = paste0(outputDir, '/', classes[pIndex], '/[', pmax, '] ', gsub('.png', '', predictions$X), '.png')[l])
+            to = paste0(outputDir, '/', classes[pIndex], '/[', roundNumber(pmax), '] ', gsub('.png', '', predictions$X), '.png')[l])
+  unlink(extractName, recursive = T)
+  endTime = Sys.time()
+  
+  message('Finished file ', i, ' out of ', length(sourceFiles$classificationFiles),
+          '.\tElapsed time: ', round(as.numeric(endTime) - as.numeric(initTime)), ' sec',
+          '\tRemaining time:', round((as.numeric(endTime) - as.numeric(initTime)) / i * (length(sourceFiles$classificationFiles) - i) / 60), ' min')
 }
-unlink(extractName, recursive = T)
+
+
 
 ## Subdivide large folders
-
 for (folder in list.dirs(outputDir)[-1]) {
   pulledRois = sample(list.files(folder, pattern = '.png'))
   n = length(pulledRois)
@@ -72,11 +79,23 @@ for (folder in list.dirs(outputDir)[-1]) {
       index = ((nCurrent - 1) * nMax + 1):min(nCurrent * nMax, length(pulledRois))
       file.copy(from = paste0(folder, '/', pulledRois[index]),
                 to = paste0(folder, '/', nCurrent, '/', pulledRois[index]))
-      unlink(paste0(folder, '/', pulledRois[index])) # Clean up
+      file.remove(paste0(folder, '/', pulledRois[index])) # Clean up
     }
   }
-  
 }
 
+zip(outputDir, zipfile = paste0(outputDir, '.zip'))
 
 
+
+## Example: fine a particular ROI png from the set of classification files.
+for (i in 1:length(sourceFiles$classificationFiles)) {
+  tmp = loadPrediction(paste0(sourceFiles$classificationPath, sourceFiles$classificationFiles[i]))
+  if (any('000339-002798.png' == tmp$file)) {
+    print(i)
+    break
+  }
+}
+
+l = which(tmp$file == '000339-002798.png')
+View(tmp[l,])
