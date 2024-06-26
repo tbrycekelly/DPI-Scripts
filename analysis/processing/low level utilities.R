@@ -20,6 +20,19 @@ loadMeasurement = function(path, verbose = T) {
 }
 
 
+roundNumber = function(x, digits = 2) {
+  out = rep(NA, length(x))
+  x = round(x, digits = digits)
+  
+  for (i in 1:length(x)) {
+    dn = max(digits - nchar(x[i])+2, 0)
+    out[i] = paste0(x[i], paste0(rep(0, dn), collapse = ''))
+  }
+  
+  ## Return
+  out
+}
+
 
 #### Predictions
 
