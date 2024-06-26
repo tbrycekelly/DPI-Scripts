@@ -1,6 +1,7 @@
 #### segmentation
 
-#' @export
+#' @title Load Measurements file
+#' @param path filepath to measurement file to load.
 loadMeasurement = function(path, verbose = T) {
   
   ## Get measurement file name
@@ -27,6 +28,20 @@ roundNumber = function(x, digits = 2) {
   for (i in 1:length(x)) {
     dn = max(digits - nchar(x[i])+2, 0)
     out[i] = paste0(x[i], paste0(rep(0, dn), collapse = ''))
+  }
+  
+  ## Return
+  out
+}
+
+
+padNumber = function(x, digits = 2) {
+  out = rep(NA, length(x))
+  x = round(x, digits = digits)
+  
+  for (i in 1:length(x)) {
+    dn = max(digits - nchar(x[i]), 0)
+    out[i] = paste0(paste0(rep(0, dn), x[i], collapse = ''))
   }
   
   ## Return
