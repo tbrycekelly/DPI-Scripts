@@ -93,15 +93,33 @@ if (length(sourceFiles$classificationFiles) > 1) {
   }
 }
 
-classification$prediction = colnames(classification)[-c(1:4)][apply(classification[,-c(1:4)], 1, which.max)]
-stats = data.frame(class = unique(classification$prediction), n = NA, fraction = NA)
+prediction = colnames(classification)[-c(1:4)][apply(classification[,-c(1:4)], 1, which.max)]
 
+stats = data.frame(class = colnames(classification)[-c(1:4)], n = NA, fraction = NA)
 for (i in 1:nrow(stats)) {
-  k = which(classification$prediction == stats$class[i])
+  k = which(prediction == stats$class[i])
   stats$n[i] = length(k)
 }
-stats$fraction = round(stats$n / nrow(classification), digits = 4)
-stats = stats[order(stats$n, decreasing = T),]
+stats$fraction = stats$n / nrow(classification)
 
-par(plt = c(0.3, 1, 0.1, 1))
-barplot(stats$fraction, names.arg = stats$class, horiz = T, las = 1, cex.names = 0.7)
+prediction2 = colnames(classification)[-c(1:4)][apply(classification[,-c(1:4)], 1, function(x) {which.max(x * stats$fraction)})]
+
+stats2 = data.frame(class = colnames(classification)[-c(1:4)], n = NA, fraction = NA)
+for (i in 1:nrow(stats2)) {
+  k = which(prediction2 == stats2$class[i])
+  stats2$n[i] = length(k)
+}
+stats2$fraction = stats2$n / nrow(classification)
+
+prediction3 = colnames(classification)[-c(1:4)][apply(classification[,-c(1:4)], 1, function(x) {which.max(x * stats2$fraction)})]
+stats3 = data.frame(class = colnames(classification)[-c(1:4)], n = NA, fraction = NA)
+for (i in 1:nrow(stats3)) {
+  k = which(prediction3 == stats3$class[i])
+  stats3$n[i] = length(k)
+}
+stats3$fraction = stats3$n / nrow(classification)
+
+sum(prediction != prediction2)
+sum(prediction2 != prediction3)
+
+cbind(stats$class, stats$n, stats2$n, stats3$n)

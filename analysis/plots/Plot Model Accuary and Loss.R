@@ -3,7 +3,7 @@ source('processing/mid level utilities.R')
 
 #### User input: 
 
-modelName = 'iota121v1'
+modelName = 'thesis121v1'
 dataPath = '../../'
 outputDir = 'export/'
 
@@ -57,3 +57,10 @@ log = read.csv(modelLogFile, header = T)
   
   dev.off()
 }
+
+
+sidecar = jsonlite::read_json(modelJsonFile)
+trainingSet = list.files(sidecar$config$training$scnn_dir, pattern = '.png', full.names = T, recursive = T)
+trainingSet = gsub(sidecar$config$training$scnn_dir, '', trainingSet)
+
+
