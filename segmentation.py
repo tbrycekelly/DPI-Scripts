@@ -32,11 +32,12 @@ License:
 exec(open("./imports.py").read())
 
 class Frame:
-    def __init__(self, fpath, name, frame, n):
+    def __init__(self, fpath, name, frame, n, filename):
         self.fpath = fpath  # default is 0 for primary camera
         self.name = name
         self.frame = frame
         self.n = n
+        self.filename = filename
 
     def read(self):
         return self.frame
@@ -49,6 +50,9 @@ class Frame:
 
     def update(self, newframe):
         self.frame = newframe
+    
+    def get_filename(self):
+        return self.filename
 
 
 
@@ -79,17 +83,18 @@ def process_frame(q, config): ## TODO: write metadata file
         thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
         cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         cnts = cnts[0] if len(cnts) == 2 else cnts[1]
-
-        name = frame.get_name()
+        
+        path = frame.get_name()
         n = frame.get_n()
+        filename = frame.get_filename()
         stats = []
 
         if config['segmentation']['diagnostic']:
             logger.debug('Saving diagnostic images.')
-            cv2.imwrite(f'{name}{n:06}-qualtilefield.jpg', gray)
-            cv2.imwrite(f'{name}{n:06}-threshold.jpg', thresh)
+            cv2.imwrite(f'{path}{filename}-{n:06}-qualtilefield.jpg', gray)
+            cv2.imwrite(f'{path}{filename}-{n:06}-threshold.jpg', thresh)
 
-        with open(f'{name[:-1]} statistics.csv', 'a', newline='\n') as outcsv:
+        with open(f'{path[:-1]} statistics.csv', 'a', newline='\n') as outcsv:
             logger.debug(f"Writing to statistics.csv. Found {len(cnts)} ROIs.")
             outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
             for i in range(len(cnts)):
@@ -118,7 +123,7 @@ def process_frame(q, config): ## TODO: write metadata file
                             left = (size - w)//2
                             top = 0
                         im_padded.paste(im, (left, top))
-                        im_padded.save(f"{name}{n:06}-{i:06}.png")
+                        im_padded.save(f"{path}{filename}-{n:06}-{i:06}.png")
                     stats = [n, i, x + w/2, y + h/2, w, h, major_axis_length, minor_axis_length]
                     outwritter.writerow(stats)
                 
@@ -168,7 +173,7 @@ def process_avi(avi_path, segmentation_dir, config, q):
         ret, frame = video.read()
         if ret:
             if not frame is None:
-                q.put(Frame(avi_path, output_path, frame, n), block = True)
+                q.put(Frame(avi_path, output_path, frame, n, filename.replace('.avi', '')), block = True)
                 n += 1 # Increment frame counter.
         else:
             break
