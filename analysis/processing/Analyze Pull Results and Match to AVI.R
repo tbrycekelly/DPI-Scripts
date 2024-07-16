@@ -63,12 +63,16 @@ if (length(sourceFiles$segmentationFiles) > 1) {
 }
 
 for (i in 1:nrow(roiIndex)) {
+  if (i %% 1000 == 0) {
+    message('.')
+  }
   k = which(roiIndex$frame[i] == statistics$frame & roiIndex$roi[i] == statistics$crop)
   
   if (length(k) > 1) {
-    message('Name collision found.')
+    message('Name collision found (n=', length(k), ').')
   }
   if (length(k) == 1) {
     roiIndex$aviFile[i] = statistics$filename[k]
+    #statistics = statistics[-k,]
   }
 }
