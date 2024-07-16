@@ -3,10 +3,13 @@ source('processing/mid level utilities.R')
 
 #### User input: 
 
-camera = 'camera0'
-transect = 'test1'
+outputDir = '../../export/prior1'
+nMax = 1000 # Maximum number of images per pull folder
+
+camera = 'camera1'
+transect = 'SewardLine_Summer22'
 segmentationName = 'REG'
-modelName = 'iota121v1'
+modelName = 'iota201v1'
 dataPath = '../../'
 outputDir = 'export/classification/'
 
@@ -24,65 +27,8 @@ sourceFiles$segmentationFiles = list.files(sourceFiles$segmentationPath, pattern
 sourceFiles$classificationFiles = list.files(sourceFiles$classificationPath, pattern = 'prediction.csv')
 sourceFiles$rawFiles = list.files(sourceFiles$rawPath, pattern = '.avi')
 
-if (!dir.exists(pathConcat(dataPath, outputDir))) {
-  dir.create(pathConcat(dataPath, outputDir), recursive = T)
-}
 
-
-for (i in 1:length(sourceFiles$classificationFiles)) {
-  predictions = read.csv(paste0(sourceFiles$classificationPath, '/', sourceFiles$classificationFiles[i]), header = T)
-  class = apply(predictions[,-1], 1, which.max)
-  
-  counts = data.frame(category = colnames(predictions)[-1])
-  counts$count = sapply(1:nrow(counts), function(j) { sum(class == j)})
-  counts = counts[order(counts$count, decreasing = T),]
-  
-  {
-    currentName = gsub('.avi_prediction.csv', '', sourceFiles$classificationFiles[i])
-    png(filename = paste0(pathConcat(dataPath, outputDir), 'Class Distribution ', currentName, '.png'),
-        width = 2000,
-        height = 1600,
-        res = 150)
-    
-    par(plt = c(0.12, 0.98, 0.3, 0.98))
-    plot(NULL,
-         NULL,
-         xlim = c(1,nrow(counts)),
-         ylim = c(0, 3.5),
-         xlab = '',
-         ylab = 'Counts',
-         xaxt = 'n',
-         yaxt = 'n')
-    
-    axis(1, at = c(1:nrow(counts)), labels = counts$category, las = 2, cex.axis = 0.7)
-    for (j in seq(1, nrow(counts), by = 5)) {
-      abline(v = j-0.5, col = 'grey')
-    }
-    
-    abline(h = c(0:4), col = 'grey')
-    abline(h = log10(c(1:9)*1), col = 'grey', lty = 2)
-    abline(h = log10(c(1:9)*10), col = 'grey', lty = 2)
-    abline(h = log10(c(1:9)*100), col = 'grey', lty = 2)
-    abline(h = log10(c(1:9)*1000), col = 'grey', lty = 2)
-    abline(h = log10(c(1:9)*10000), col = 'grey', lty = 2)
-    axis(2, at = c(0:4), labels = 10^c(0:4))
-    
-    points(log10(counts$count), pch = 15)
-    mtext(text = currentName,
-          side = 3,
-          line = -1.5,
-          adj = 0.01,
-          cex = 1.5)
-    mtext(text = paste(nrow(predictions), ' ROIs'),
-          adj = 0.99,
-          line = -1.5,
-          cex = 1.5)
-    
-    dev.off()
-  }
-}
-
-#### Determine the predicted distribution of particle types:
+## Determine the predicted distribution of particle types:
 
 classification = loadPrediction(paste0(sourceFiles$classificationPath, '/', sourceFiles$classificationFiles[1]))
 
@@ -93,33 +39,139 @@ if (length(sourceFiles$classificationFiles) > 1) {
   }
 }
 
-prediction = colnames(classification)[-c(1:4)][apply(classification[,-c(1:4)], 1, which.max)]
-
-stats = data.frame(class = colnames(classification)[-c(1:4)], n = NA, fraction = NA)
-for (i in 1:nrow(stats)) {
-  k = which(prediction == stats$class[i])
-  stats$n[i] = length(k)
+getPrior = function(classification) {
+  prediction = apply(classification, 1, which.max)
+  stats = data.frame(class = colnames(classification), n = NA, weight = NA)
+  for (i in 1:nrow(stats)) {
+    k = which(prediction == i)
+    stats$n[i] = length(k)
+  }
+  stats$weight = stats$n / nrow(classification) + 0.5 / nrow(stats)
+  stats$weight = stats$weight / sum(stats$weight)
+  stats
 }
-stats$fraction = stats$n / nrow(classification)
 
-prediction2 = colnames(classification)[-c(1:4)][apply(classification[,-c(1:4)], 1, function(x) {which.max(x * stats$fraction)})]
 
-stats2 = data.frame(class = colnames(classification)[-c(1:4)], n = NA, fraction = NA)
-for (i in 1:nrow(stats2)) {
-  k = which(prediction2 == stats2$class[i])
-  stats2$n[i] = length(k)
+#prediction = colnames(classification)[-c(1:4)][apply(classification[,-c(1:4)], 1, which.max)]
+prior = getPrior(classification[,-c(1:4)])
+
+weight = matrix(prior$weight, nrow = nrow(classification), ncol = length(prior$weight), byrow = T)
+prior2 = getPrior(classification[,-c(1:4)] * weight)
+
+weight = matrix(prior$weight2, nrow = nrow(classification), ncol = length(prior$weight2), byrow = T)
+prior3 = getPrior(classification[,-c(1:4)] * weight)
+
+weight = matrix(prior$weight3, nrow = nrow(classification), ncol = length(prior$weight3), byrow = T)
+prior4 = getPrior(classification[,-c(1:4)] * weight)
+
+weight = matrix(prior$weight4, nrow = nrow(classification), ncol = length(prior$weight4), byrow = T)
+prior5 = getPrior(classification[,-c(1:4)] * weight)
+
+data.frame(class = prior$class,
+           n1 = prior$n,
+           n2 = prior2$n,
+           n3 = prior3$n,
+           n4 = prior4$n,
+           n5 = prior5$n)
+
+
+## PULL different images
+if (!dir.exists(outputDir)) {
+  dir.create(outputDir, recursive = T)
 }
-stats2$fraction = stats2$n / nrow(classification)
 
-prediction3 = colnames(classification)[-c(1:4)][apply(classification[,-c(1:4)], 1, function(x) {which.max(x * stats2$fraction)})]
-stats3 = data.frame(class = colnames(classification)[-c(1:4)], n = NA, fraction = NA)
-for (i in 1:nrow(stats3)) {
-  k = which(prediction3 == stats3$class[i])
-  stats3$n[i] = length(k)
+initTime = Sys.time()
+for (i in 1:length(sourceFiles$classificationFiles)) {
+  startTime = Sys.time()
+  
+  predictions = read.csv(paste0(sourceFiles$classificationPath, sourceFiles$classificationFiles[i]), header = T)
+  
+  ## Extract ROIs
+  zipName = paste0(sourceFiles$segmentationPath, gsub('_prediction.csv', '.zip', sourceFiles$classificationFiles[i]))
+  extractName = paste0(sourceFiles$segmentationPath, gsub('_prediction.csv', '/', sourceFiles$classificationFiles[i]))
+  unzip(zipfile = zipName, exdir = extractName)
+  
+  weight = matrix(prior5$weight, nrow = nrow(predictions), ncol = length(prior5$weight), byrow = T)
+  
+  classes = colnames(predictions)[-1]
+  pmax = apply(predictions[,-1], 1, max)
+  pmax = round(pmax, digits = 2)
+  pIndex = apply(predictions[,-1], 1, which.max)
+  pIndexPrior = apply(predictions[,-1] * weight, 1, which.max)
+  
+  for (class in classes) {
+    if (!dir.exists(paste0(outputDir, '/', class))) {
+      dir.create(paste0(outputDir, '/', class), recursive = T)
+    }
+  }
+  
+  l = pIndex != pIndexPrior
+  
+  file.copy(from = paste0(extractName, '/', predictions$X)[l], 
+            to = paste0(outputDir, '/', classes[pIndexPrior], '/', classes[pIndex], ' to ', classes[pIndexPrior], '-', gsub('.png', '', predictions$X), '.png')[l])
+  unlink(extractName, recursive = T)
+  endTime = Sys.time()
+  
+  message('Finished file ', i, ' out of ', length(sourceFiles$classificationFiles),
+          '.\tElapsed time: ', round(as.numeric(endTime) - as.numeric(initTime)), ' sec',
+          '\tRemaining time:', round((as.numeric(endTime) - as.numeric(initTime)) / i * (length(sourceFiles$classificationFiles) - i) / 60), ' min')
 }
-stats3$fraction = stats3$n / nrow(classification)
 
-sum(prediction != prediction2)
-sum(prediction2 != prediction3)
+initTime = Sys.time()
+for (i in 1:length(sourceFiles$classificationFiles)) {
+  startTime = Sys.time()
+  
+  predictions = read.csv(paste0(sourceFiles$classificationPath, sourceFiles$classificationFiles[i]), header = T)
+  
+  ## Extract ROIs
+  zipName = paste0(sourceFiles$segmentationPath, gsub('_prediction.csv', '.zip', sourceFiles$classificationFiles[i]))
+  extractName = paste0(sourceFiles$segmentationPath, gsub('_prediction.csv', '/', sourceFiles$classificationFiles[i]))
+  unzip(zipfile = zipName, exdir = extractName)
+  
+  weight = matrix(prior5$weight, nrow = nrow(predictions), ncol = length(prior5$weight), byrow = T)
+  
+  classes = colnames(predictions)[-1]
+  pmax = apply(predictions[,-1], 1, max)
+  pmax = round(pmax, digits = 2)
+  pIndex = apply(predictions[,-1], 1, which.max)
+  pIndexPrior = apply(predictions[,-1] * weight, 1, which.max)
+  
+  for (class in classes) {
+    if (!dir.exists(paste0(outputDir, '/', class))) {
+      dir.create(paste0(outputDir, '/', class), recursive = T)
+    }
+  }
+  
+  l = pIndex != pIndexPrior
+  
+  file.copy(from = paste0(extractName, '/', predictions$X)[l], 
+            to = paste0(outputDir, '/', classes[pIndex], '/', classes[pIndex], ' to ', classes[pIndexPrior], '-', gsub('.png', '', predictions$X), '.png')[l])
+  unlink(extractName, recursive = T)
+  endTime = Sys.time()
+  
+  message('Finished file ', i, ' out of ', length(sourceFiles$classificationFiles),
+          '.\tElapsed time: ', round(as.numeric(endTime) - as.numeric(initTime)), ' sec',
+          '\tRemaining time:', round((as.numeric(endTime) - as.numeric(initTime)) / i * (length(sourceFiles$classificationFiles) - i) / 60), ' min')
+}
 
-cbind(stats$class, stats$n, stats2$n, stats3$n)
+
+## Apply approach to training set predictions.
+
+trainingPredictions = read.csv('../../model/iota201v2 predictions.csv')
+pred1 = apply(trainingPredictions[,-1], 1, which.max)
+
+prior = getPrior(trainingPredictions[,-1])
+weights = matrix(prior$weight, nrow = nrow(trainingPredictions), ncol = ncol(trainingPredictions)-1, byrow = T)
+pred2 = apply(trainingPredictions[,-1] * weights, 1, which.max)
+
+prior = getPrior(trainingPredictions[,-1] * weights)
+
+performance = data.frame(true = trainingPredictions$X+1,
+                         normalPrediction = pred1,
+                         priorPrediction = pred2)
+
+sum(performance$true != performance$normalPrediction)
+sum(performance$true != performance$priorPrediction)
+sum(performance$normalPrediction != performance$priorPrediction)
+
+performance[which(performance$normalPrediction != performance$priorPrediction),]
