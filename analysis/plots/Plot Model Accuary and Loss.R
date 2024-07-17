@@ -3,7 +3,7 @@ source('processing/mid level utilities.R')
 
 #### User input: 
 
-modelName = 'thesis121v1'
+modelName = 'kappa121v3'
 dataPath = '../../'
 outputDir = 'export/'
 

@@ -24,15 +24,15 @@
         "overwrite" : false
     },
     "training" : {
-        "scnn_dir" : "../training/training_set_20240123",
-        "model_name": "iota201v2",
-        "model_type": "DenseNet201",
+        "scnn_dir" : "../training/training_set_20240711",
+        "model_name": "kappa121v3",
+        "model_type": "DenseNet121",
         "model_path": "../model/",
         "image_size": 128,
         "start" : 0,
-        "stop" : 400,
+        "stop" : 200,
         "validationSetRatio" : 0.25,
-        "batchsize" : 64,
+        "batchsize" : 128,
         "seed": 123,
         "overwrite" : false
     }

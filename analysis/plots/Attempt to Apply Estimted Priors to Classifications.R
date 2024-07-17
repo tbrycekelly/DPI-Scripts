@@ -157,7 +157,7 @@ for (i in 1:length(sourceFiles$classificationFiles)) {
 
 ## Apply approach to training set predictions.
 
-trainingPredictions = read.csv('../../model/iota201v2 predictions.csv')
+trainingPredictions = read.csv('../../model/kappa121v2 predictions.csv')
 pred1 = apply(trainingPredictions[,-1], 1, which.max)
 
 prior = getPrior(trainingPredictions[,-1])

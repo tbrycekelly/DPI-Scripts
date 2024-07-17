@@ -80,11 +80,12 @@ def transition_block(x, compression):
 def augmentation_block(x):
     x = tf.keras.layers.Rescaling(-1. / 255, 1)(x) # Invert shadowgraph image (white vs black)
     x = tf.keras.layers.RandomRotation(1, fill_mode='constant', fill_value=0.0)(x)
-    x = tf.keras.layers.RandomZoom(32/128, fill_value=0.0, fill_mode='constant')(x)
-    x = tf.keras.layers.RandomTranslation(0.3, 0.3, fill_mode='constant', fill_value=0.0)(x)
+    x = tf.keras.layers.RandomZoom(0.25, fill_value=0.0, fill_mode='constant')(x)
+    x = tf.keras.layers.RandomTranslation(0.25, 0.25, fill_mode='constant', fill_value=0.0)(x)
     x = tf.keras.layers.RandomFlip("horizontal_and_vertical")(x)
-    x = tf.keras.layers.RandomBrightness(0.2, value_range=(0.0, 1.0))(x)
-    x = tf.keras.layers.RandomContrast(0.5)(x)
+    x = tf.keras.layers.RandomBrightness(0.25, value_range=(0.0, 1.0))(x)
+    x = tf.keras.layers.RandomContrast(0.25)(x)
+    x = tf.keras.layers.GaussianNoise(0.2)(x)
     return x
 
 def DenseNet(input_shape, num_classes):
@@ -92,21 +93,21 @@ def DenseNet(input_shape, num_classes):
     ## Init and Augmentation
     inputs = tf.keras.layers.Input(shape=input_shape)
     x = augmentation_block(inputs)
-    
+
     # Initial convolution layer
     x = tf.keras.layers.Conv2D(128, (7, 7), strides=(2, 2), padding='same')(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Activation('relu')(x)
     x = tf.keras.layers.MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same')(x)
-
-    ## DenseNet201
+    
+    ## DenseNet121 (116 internal)
     x = dense_block(x, num_layers=6, growth_rate=32)
     x = transition_block(x, compression=0.5)
     x = dense_block(x, num_layers=12, growth_rate=32)
     x = transition_block(x, compression=0.5)
-    x = dense_block(x, num_layers=48, growth_rate=32)
+    x = dense_block(x, num_layers=24, growth_rate=32)
     x = transition_block(x, compression=0.5)
-    x = dense_block(x, num_layers=32, growth_rate=32)
+    x = dense_block(x, num_layers=16, growth_rate=32)
 
     # Final layers
     x = tf.keras.layers.BatchNormalization()(x)
@@ -216,8 +217,7 @@ if __name__ == "__main__":
     predictions = model.predict(val_ds)
     prediction_matrix = pd.DataFrame(predictions, index = y, columns = train_ds.class_names)
     prediction_matrix.to_csv(config['training']['model_path'] + '/' + config['training']['model_name'] + ' predictions.csv')
-
-    predictions = np.argmax(predictions, axis = -1)
+    
     logger.debug('Developing confusion matrix from validation dataset.')
     confusion_matrix = tf.math.confusion_matrix(y, predictions)
     confusion_matrix = pd.DataFrame(confusion_matrix, index = train_ds.class_names, columns = train_ds.class_names)
