@@ -25,7 +25,7 @@
     },
     "training" : {
         "scnn_dir" : "../training/training_set_20240711",
-        "model_name": "kappa121v3",
+        "model_name": "kappa121v10",
         "model_type": "DenseNet121",
         "model_path": "../model/",
         "image_size": 128,

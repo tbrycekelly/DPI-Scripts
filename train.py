@@ -77,6 +77,7 @@ def transition_block(x, compression):
     x = tf.keras.layers.MaxPooling2D((2, 2))(x)
     return x
 
+
 def augmentation_block(x):
     x = tf.keras.layers.Rescaling(-1. / 255, 1)(x) # Invert shadowgraph image (white vs black)
     x = tf.keras.layers.RandomRotation(1, fill_mode='constant', fill_value=0.0)(x)
@@ -88,6 +89,7 @@ def augmentation_block(x):
     x = tf.keras.layers.GaussianNoise(0.1)(x)
     return x
 
+
 def DenseNet(input_shape, num_classes):
 
     ## Init and Augmentation
@@ -95,19 +97,19 @@ def DenseNet(input_shape, num_classes):
     x = augmentation_block(inputs)
 
     # Initial convolution layer
-    x = tf.keras.layers.Conv2D(128, (7, 7), strides=(2, 2), padding='same', kernel_initializer=tf.keras.initializers.HeNormal())(x)
+    x = tf.keras.layers.Conv2D(256, (7, 7), strides=(2, 2), padding='same', kernel_initializer=tf.keras.initializers.HeNormal())(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Activation('relu')(x)
     x = tf.keras.layers.MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same')(x)
     
     ## DenseNet121 (116 internal)
-    x = dense_block(x, num_layers=6, growth_rate=64)
+    x = dense_block(x, num_layers=6, growth_rate=32)
     x = transition_block(x, compression=0.5)
-    x = dense_block(x, num_layers=6, growth_rate=64)
+    x = dense_block(x, num_layers=12, growth_rate=32)
     x = transition_block(x, compression=0.5)
-    x = dense_block(x, num_layers=12, growth_rate=64)
+    x = dense_block(x, num_layers=24, growth_rate=32)
     x = transition_block(x, compression=0.5)
-    x = dense_block(x, num_layers=12, growth_rate=64)
+    x = dense_block(x, num_layers=16, growth_rate=32)
 
     # Final layers
     x = tf.keras.layers.BatchNormalization()(x)
@@ -219,6 +221,7 @@ if __name__ == "__main__":
     prediction_matrix.to_csv(config['training']['model_path'] + '/' + config['training']['model_name'] + ' predictions.csv')
     
     logger.debug('Developing confusion matrix from validation dataset.')
+    predictions = np.argmax(predictions, axis = -1)
     confusion_matrix = tf.math.confusion_matrix(y, predictions)
     confusion_matrix = pd.DataFrame(confusion_matrix, index = train_ds.class_names, columns = train_ds.class_names)
     confusion_matrix.to_csv(config['training']['model_path'] + '/' + config['training']['model_name'] + ' confusion.csv')
