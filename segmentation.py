@@ -99,6 +99,7 @@ def process_frame(q, config): ## TODO: write metadata file
             outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
             for i in range(len(cnts)):
                 x,y,w,h = cv2.boundingRect(cnts[i])
+                area = cv2.contourArea(cnts[i])
                 if 2*w + 2*h > int(config['segmentation']['min_perimeter_statsonly']):
                     if len(cnts[i]) >= 5:  # Minimum number of points required to fit an ellipse
                         ellipse = cv2.fitEllipse(cnts[i])
@@ -124,7 +125,7 @@ def process_frame(q, config): ## TODO: write metadata file
                             top = 0
                         im_padded.paste(im, (left, top))
                         im_padded.save(f"{path}{filename}-{n:06}-{i:06}.png")
-                    stats = [n, i, x + w/2, y + h/2, w, h, major_axis_length, minor_axis_length]
+                    stats = [n, i, x + w/2, y + h/2, w, h, major_axis_length, minor_axis_length, area]
                     outwritter.writerow(stats)
                 
 
@@ -166,7 +167,7 @@ def process_avi(avi_path, segmentation_dir, config, q):
     
     with open(statistics_filepath, 'a', newline='\n') as outcsv:
         outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
-        outwritter.writerow(['frame', 'crop', 'x', 'y', 'w', 'h', 'major_axis', 'minor_axis'])
+        outwritter.writerow(['frame', 'crop', 'x', 'y', 'w', 'h', 'major_axis', 'minor_axis', 'area'])
 
     n = 1 # Frame count
     while True:
