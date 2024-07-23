@@ -58,7 +58,7 @@ exec(open("./imports.py").read())
 def conv_block(x, growth_rate):
     x1 = tf.keras.layers.BatchNormalization()(x)
     x1 = tf.keras.layers.Activation('relu')(x1)
-    x1 = tf.keras.layers.Conv2D(growth_rate, (3, 3), padding='same')(x1)
+    x1 = tf.keras.layers.Conv2D(growth_rate, (3, 3), padding='same', kernel_initializer=tf.keras.initializers.HeNormal())(x1)
     x = tf.keras.layers.concatenate([x, x1], axis=-1)
     return x
 
@@ -77,6 +77,7 @@ def transition_block(x, compression):
     x = tf.keras.layers.MaxPooling2D((2, 2))(x)
     return x
 
+
 def augmentation_block(x):
     x = tf.keras.layers.Rescaling(-1. / 255, 1)(x) # Invert shadowgraph image (white vs black)
     x = tf.keras.layers.RandomRotation(1, fill_mode='constant', fill_value=0.0)(x)
@@ -85,8 +86,9 @@ def augmentation_block(x):
     x = tf.keras.layers.RandomFlip("horizontal_and_vertical")(x)
     x = tf.keras.layers.RandomBrightness(0.25, value_range=(0.0, 1.0))(x)
     x = tf.keras.layers.RandomContrast(0.25)(x)
-    x = tf.keras.layers.GaussianNoise(0.2)(x)
+    x = tf.keras.layers.GaussianNoise(0.1)(x)
     return x
+
 
 def DenseNet(input_shape, num_classes):
 
@@ -95,7 +97,7 @@ def DenseNet(input_shape, num_classes):
     x = augmentation_block(inputs)
 
     # Initial convolution layer
-    x = tf.keras.layers.Conv2D(128, (7, 7), strides=(2, 2), padding='same')(x)
+    x = tf.keras.layers.Conv2D(256, (7, 7), strides=(2, 2), padding='same', kernel_initializer=tf.keras.initializers.HeNormal())(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Activation('relu')(x)
     x = tf.keras.layers.MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same')(x)
@@ -219,6 +221,7 @@ if __name__ == "__main__":
     prediction_matrix.to_csv(config['training']['model_path'] + '/' + config['training']['model_name'] + ' predictions.csv')
     
     logger.debug('Developing confusion matrix from validation dataset.')
+    predictions = np.argmax(predictions, axis = -1)
     confusion_matrix = tf.math.confusion_matrix(y, predictions)
     confusion_matrix = pd.DataFrame(confusion_matrix, index = train_ds.class_names, columns = train_ds.class_names)
     confusion_matrix.to_csv(config['training']['model_path'] + '/' + config['training']['model_name'] + ' confusion.csv')
