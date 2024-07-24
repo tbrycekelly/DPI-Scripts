@@ -304,7 +304,7 @@ if __name__ == "__main__":
         logger.debug(f"Found AVI file {idx}: {av}.")
 
     ## Prepare workers for receiving frames
-    num_threads = os.cpu_count() // 2
+    num_threads = os.cpu_count() - 2
     #num_threads = 4
     logger.info(f"Starting processing with {num_threads} processes...")
     with concurrent.futures.ProcessPoolExecutor(max_workers=num_threads) as executor:
