@@ -304,7 +304,7 @@ if __name__ == "__main__":
         logger.debug(f"Found AVI file {idx}: {av}.")
 
     ## Prepare workers for receiving frames
-    num_threads = os.cpu_count() - 1
+    num_threads = os.cpu_count() // 2
     #num_threads = 4
     logger.info(f"Starting processing with {num_threads} processes...")
     with concurrent.futures.ProcessPoolExecutor(max_workers=num_threads) as executor:
@@ -322,6 +322,7 @@ if __name__ == "__main__":
             else:
                 end_time = time()
                 logger.info(f"Processed {n} of {len(avis)} files.\t\t Estimated remainder: {(end_time - init_time)/n*(len(avis)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time)/60:.1f} minutes.")
+                n += 1
 
     if len(avis) > 0:
         logger.info('Archiving results and cleaning up.')
