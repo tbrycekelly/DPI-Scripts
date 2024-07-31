@@ -48,8 +48,8 @@ for (i in 1:nrow(roiIndex)) {
     roiIndex$filename[i] = gsub('.png', '', tmp[2])
     ## get frame and roi number
     tmp = strsplit(roiIndex$filename[i], split = '-')[[1]]
-    roiIndex$frame = as.numeric(tmp[1])
-    roiIndex$roi = as.numeric(tmp[2])
+    roiIndex$frame[i] = as.numeric(tmp[1])
+    roiIndex$roi[i] = as.numeric(tmp[2])
   }
 }
 
@@ -70,9 +70,10 @@ for (i in 1:nrow(roiIndex)) {
   
   if (length(k) > 1) {
     message('Name collision found (n=', length(k), ').')
-  }
-  if (length(k) == 1) {
+  } else if (length(k) == 1) {
     roiIndex$aviFile[i] = statistics$filename[k]
     #statistics = statistics[-k,]
+  } else {
+    message('No matching particle information found for ', roiIndex$filename[i])
   }
 }
