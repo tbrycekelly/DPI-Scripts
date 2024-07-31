@@ -3,7 +3,7 @@ source('processing/mid level utilities.R')
 
 #### User input: 
 
-outputDir = '../../export/hannah_qc/SewardLine_Summer22_camera1_iota201v1/'
+outputDir = '../../export/pull/'
 
 camera = 'camera1'
 transect = 'SewardLine_Summer22'
@@ -26,11 +26,9 @@ sourceFiles$classificationFiles = list.files(sourceFiles$classificationPath, pat
 
 ## Load in list of all files in directory:
 roiFiles = list.files(outputDir, pattern = '.png', full.names = T, recursive = T)
-roiFiles = gsub(outputDir, '', roiFiles)
-roiFiles = strsplit(roiFiles, split = '/')
-message('Found ', length(roiFiles), ' image files.')
 
-roiIndex = data.frame(class = rep(NA, length(roiFiles)),
+roiIndex = data.frame(path = roiFiles,
+                      class = NA,
                       filename = NA,
                       frame = NA,
                       roi = NA,
@@ -39,10 +37,18 @@ roiIndex = data.frame(class = rep(NA, length(roiFiles)),
                       segmentationName = NA,
                       modelName = NA,
                       aviFile = NA,
-                      time = NA)
+                      time = NA,
+                      width = NA,
+                      height = NA)
+
+roiFiles = gsub(outputDir, '', roiFiles)
+roiFiles = strsplit(roiFiles, split = '/')
+message('Found ', length(roiFiles), ' image files.')
+
+
 
 for (i in 1:nrow(roiIndex)) {
-  if (length(roiFiles[[i]]) == 2) {
+  if (length(roiFiles[[i]]) > 1) {
     roiIndex$class[i] = roiFiles[[i]][1]
     tmp = strsplit(roiFiles[[i]][2], split = ' ')[[1]]
     roiIndex$filename[i] = gsub('.png', '', tmp[2])
@@ -50,6 +56,9 @@ for (i in 1:nrow(roiIndex)) {
     tmp = strsplit(roiIndex$filename[i], split = '-')[[1]]
     roiIndex$frame[i] = as.numeric(tmp[1])
     roiIndex$roi[i] = as.numeric(tmp[2])
+    tmp = png::readPNG(source = roiIndex$path[i])
+    roiIndex$height[i] = dim(tmp)[1]
+    roiIndex$width[i] = dim(tmp)[2]
   }
 }
 
@@ -61,12 +70,14 @@ if (length(sourceFiles$segmentationFiles) > 1) {
     statistics = rbind(statistics, tmp)
   }
 }
+statistics = statistics[statistics$w + statistics$h > 50, ] # only want to actually look at the larger ROIs (perimeter > 100).
+statistics$size = apply(statistics[,c('w','h')], 1, max)
 
 for (i in 1:nrow(roiIndex)) {
   if (i %% 1000 == 0) {
     message('.')
   }
-  k = which(roiIndex$frame[i] == statistics$frame & roiIndex$roi[i] == statistics$crop)
+  k = which(roiIndex$frame[i] == statistics$frame & roiIndex$roi[i] == statistics$crop & roiIndex$width[i] == statistics$size)
   
   if (length(k) > 1) {
     message('Name collision found (n=', length(k), ').')
