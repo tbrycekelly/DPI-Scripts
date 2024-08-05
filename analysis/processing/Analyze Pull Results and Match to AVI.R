@@ -3,7 +3,7 @@ source('processing/mid level utilities.R')
 
 #### User input: 
 
-outputDir = '../../export/pull/'
+outputDir = '../../export/hannah_qc/SewardLine_Summer22_camera1_iota201v1/'
 
 camera = 'camera1'
 transect = 'SewardLine_Summer22'
@@ -33,10 +33,10 @@ roiIndex = data.frame(path = roiFiles,
                       filename = NA,
                       frame = NA,
                       roi = NA,
-                      camera = NA,
-                      transect = NA,
+                      camera = camera,
+                      transect = transect,
                       segmentationName = NA,
-                      modelName = NA,
+                      modelName = modelName,
                       aviFile = NA,
                       time = NA,
                       width = NA,
@@ -65,16 +65,20 @@ for (i in 1:nrow(roiIndex)) {
   }
 }
 
+View(roiIndex)
+
 ## Load segmentation statistics files:
 statistics = loadMeasurement(paste0(sourceFiles$segmentationPath, '/', sourceFiles$segmentationFiles[1]))
 if (length(sourceFiles$segmentationFiles) > 1) {
   for (i in 2:length(sourceFiles$segmentationFiles)) {
+    message('Loading statistics file ', i)
     tmp = loadMeasurement(paste0(sourceFiles$segmentationPath, '/', sourceFiles$segmentationFiles[i]))
     statistics = rbind(statistics, tmp)
   }
 }
-statistics = statistics[statistics$w + statistics$h > 50, ] # only want to actually look at the larger ROIs (perimeter > 100).
 statistics$size = apply(statistics[,c('w','h')], 1, max)
+statistics = statistics[statistics$size >= min(roiIndex$width, na.rm = T), ] # only want to actually look at the larger ROIs (perimeter > 100).
+
 
 for (i in 1:nrow(roiIndex)) {
   if (i %% 1000 == 0) {
@@ -91,3 +95,5 @@ for (i in 1:nrow(roiIndex)) {
     message('No matching particle information found for ', roiIndex$filename[i])
   }
 }
+
+saveRDS(roiIndex, file = paste0(outputDir, '/roiIndex.rds'))
