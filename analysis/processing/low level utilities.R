@@ -83,12 +83,29 @@ loadPrediction = function(path, verbose = T) {
 }
 
 
-classify = function(prediction) {
+classify = function(prediction, weights = NULL) {
   
-  class = apply(prediction[,-c(1:4)], 1, which.max)
+  if (is.null(weights)) {
+    weights = 1
+  }
+  
+  class = apply(prediction[,-c(1:4)], 1, function(x) {which.max(x * weights)})
   class = colnames(prediction)[-c(1:4)][class]
   
   cbind(prediction[,c(1:4)], data.frame(class = class))
+}
+
+
+getPrior = function(prediction) {
+  prediction = apply(prediction, 1, which.max)
+  stats = data.frame(class = colnames(prediction), n = NA, weight = NA)
+  for (i in 1:nrow(stats)) {
+    k = which(prediction == i)
+    stats$n[i] = length(k)
+  }
+  stats$weight = stats$n / nrow(prediction) + 0.5 / nrow(stats)
+  stats$weight = stats$weight / sum(stats$weight)
+  stats
 }
 
 

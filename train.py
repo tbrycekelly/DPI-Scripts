@@ -107,9 +107,9 @@ def DenseNet(input_shape, num_classes):
     x = transition_block(x, compression=0.5)
     x = dense_block(x, num_layers=12, growth_rate=32)
     x = transition_block(x, compression=0.5)
-    x = dense_block(x, num_layers=24, growth_rate=32)
+    x = dense_block(x, num_layers=12, growth_rate=32)
     x = transition_block(x, compression=0.5)
-    x = dense_block(x, num_layers=16, growth_rate=32)
+    x = dense_block(x, num_layers=12, growth_rate=32)
 
     # Final layers
     x = tf.keras.layers.BatchNormalization()(x)

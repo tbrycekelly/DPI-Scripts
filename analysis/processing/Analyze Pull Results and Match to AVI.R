@@ -26,6 +26,7 @@ sourceFiles$classificationFiles = list.files(sourceFiles$classificationPath, pat
 
 ## Load in list of all files in directory:
 roiFiles = list.files(outputDir, pattern = '.png', full.names = T, recursive = T)
+message('Found ', length(roiFiles), ' image files.')
 
 roiIndex = data.frame(path = roiFiles,
                       class = NA,
@@ -43,19 +44,21 @@ roiIndex = data.frame(path = roiFiles,
 
 roiFiles = gsub(outputDir, '', roiFiles)
 roiFiles = strsplit(roiFiles, split = '/')
-message('Found ', length(roiFiles), ' image files.')
-
 
 
 for (i in 1:nrow(roiIndex)) {
   if (length(roiFiles[[i]]) > 1) {
-    roiIndex$class[i] = roiFiles[[i]][1]
-    tmp = strsplit(roiFiles[[i]][2], split = ' ')[[1]]
+    n = length(roiFiles[[i]])
+    roiIndex$class[i] = roiFiles[[i]][n-1]
+    
+    tmp = strsplit(roiFiles[[i]][n], split = ' ')[[1]]
     roiIndex$filename[i] = gsub('.png', '', tmp[2])
+    
     ## get frame and roi number
     tmp = strsplit(roiIndex$filename[i], split = '-')[[1]]
     roiIndex$frame[i] = as.numeric(tmp[1])
     roiIndex$roi[i] = as.numeric(tmp[2])
+    
     tmp = png::readPNG(source = roiIndex$path[i])
     roiIndex$height[i] = dim(tmp)[1]
     roiIndex$width[i] = dim(tmp)[2]
