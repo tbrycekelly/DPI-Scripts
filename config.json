@@ -7,6 +7,7 @@
     "segmentation" : {
         "diagnostic" : false,
         "basename" : "REG",
+        "analysis_dir" : "../analysis/",
         "min_perimeter" : 100,
         "max_perimeter" : 40000,
         "min_perimeter_statsonly" : 20,
@@ -15,8 +16,9 @@
         "overwrite" : false
     },
     "classification" : {
-        "model_name" : "iota121v1",
+        "model_name" : "kappa121v10",
         "model_dir" : "../model",
+        "analysis_dir" : "../analysis/",
         "scnn_instances" : 1,
         "batchsize" : 128,
         "image_size" : 128,
@@ -24,9 +26,9 @@
         "overwrite" : false
     },
     "training" : {
-        "scnn_dir" : "../training/training_set_20240711",
-        "model_name": "kappa121v10",
-        "model_type": "DenseNet121",
+        "scnn_dir" : "../training/training_set_20240829",
+        "model_name": "lambda89v1",
+        "model_type": "DenseNet89",
         "model_path": "../model/",
         "image_size": 128,
         "start" : 0,

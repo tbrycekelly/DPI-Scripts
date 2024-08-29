@@ -39,17 +39,6 @@ if (length(sourceFiles$classificationFiles) > 1) {
   }
 }
 
-getPrior = function(classification) {
-  prediction = apply(classification, 1, which.max)
-  stats = data.frame(class = colnames(classification), n = NA, weight = NA)
-  for (i in 1:nrow(stats)) {
-    k = which(prediction == i)
-    stats$n[i] = length(k)
-  }
-  stats$weight = stats$n / nrow(classification) + 0.5 / nrow(stats)
-  stats$weight = stats$weight / sum(stats$weight)
-  stats
-}
 
 
 #prediction = colnames(classification)[-c(1:4)][apply(classification[,-c(1:4)], 1, which.max)]

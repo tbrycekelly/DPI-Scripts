@@ -3,14 +3,14 @@ source('processing/mid level utilities.R')
 
 #### User input: 
 
-outputDir = '../../export/SewardLine_Summer22_camera1_thesis201v3'
+outputDir = '../../export/testWithPrior'
 nMax = 1000 # Maximum number of images per pull folder
 pMin = 0.0 # minimum probability for pulled images (0 = pull all, 0.9 = 90% confidence)
 
-camera = 'camera1'
-transect = 'SewardLine_Summer22'
+camera = 'camera0'
+transect = 'test1'
 segmentationName = 'REG'
-modelName = 'thesis201v3'
+modelName = 'kappa121v10'
 
 
 #### Autopilot from here:
@@ -26,6 +26,29 @@ sourceFiles$segmentationFiles = list.files(sourceFiles$segmentationPath, pattern
 sourceFiles$classificationFiles = list.files(sourceFiles$classificationPath, pattern = 'prediction.csv')
 
 
+## Calculate priors from full dataset:
+
+classification = read.csv(paste0(sourceFiles$classificationPath, sourceFiles$classificationFiles[1]), header = T)
+for (i in 2:length(sourceFiles$classificationFiles)){
+  tmp = read.csv(paste0(sourceFiles$classificationPath, sourceFiles$classificationFiles[i]), header = T)
+  classification = rbind(classification, tmp)
+}
+
+prior = getPrior(classification[,-1])
+
+weight = matrix(prior$weight, nrow = nrow(classification), ncol = length(prior$weight), byrow = T)
+prior = getPrior(classification[,-1] * weight)
+
+weight = matrix(prior$weight, nrow = nrow(classification), ncol = length(prior$weight), byrow = T)
+prior = getPrior(classification[,-1] * weight)
+
+weight = matrix(prior$weight, nrow = nrow(classification), ncol = length(prior$weight), byrow = T)
+prior = getPrior(classification[,-1] * weight)
+
+weight = matrix(prior$weight, nrow = nrow(classification), ncol = length(prior$weight), byrow = T)
+prior = getPrior(classification[,-1] * weight)
+
+
 if (!dir.exists(outputDir)) {
   dir.create(outputDir, recursive = T)
 }
@@ -35,6 +58,7 @@ for (i in 1:length(sourceFiles$classificationFiles)) {
   startTime = Sys.time()
   
   predictions = read.csv(paste0(sourceFiles$classificationPath, sourceFiles$classificationFiles[i]), header = T)
+  weight = matrix(prior5$weight, nrow = nrow(predictions), ncol = length(prior5$weight), byrow = T)
   
   ## Extract ROIs
   zipName = paste0(sourceFiles$segmentationPath, gsub('_prediction.csv', '.zip', sourceFiles$classificationFiles[i]))
@@ -44,7 +68,7 @@ for (i in 1:length(sourceFiles$classificationFiles)) {
   classes = colnames(predictions)[-1]
   pmax = apply(predictions[,-1], 1, max)
   pmax = round(pmax, digits = 2)
-  pIndex = apply(predictions[,-1], 1, which.max)
+  pIndex = apply(predictions[,-1] * weight, 1, which.max) # Weighted based on prior
   
   for (class in classes) {
     if (!dir.exists(paste0(outputDir, '/', class))) {

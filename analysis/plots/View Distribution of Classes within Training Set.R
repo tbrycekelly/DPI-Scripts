@@ -3,12 +3,14 @@ source('processing/mid level utilities.R')
 
 #### User input: 
 
-trainingDir = '../../training/training_set_20240711/'
+trainingDir = '../../training/training_set_20240829/'
 
 #### Autopilot from here:
 
 ## Load in list of all files in directory:
 roiFiles = list.files(trainingDir, pattern = '.png', full.names = T, recursive = T)
+tmp = list.files(trainingDir, pattern = '.jpg', full.names = T, recursive = T)
+roiFiles = c(roiFiles, tmp)
 roiFiles = gsub(trainingDir, '', roiFiles)
 roiFiles = strsplit(roiFiles, split = '/')
 
@@ -34,3 +36,4 @@ for (i in 1:nrow(classes)) {
 }
 
 classes = classes[order(classes$N),]
+View(classes)

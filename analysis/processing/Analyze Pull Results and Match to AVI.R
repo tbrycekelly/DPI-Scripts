@@ -69,16 +69,19 @@ View(roiIndex)
 
 ## Load segmentation statistics files:
 statistics = loadMeasurement(paste0(sourceFiles$segmentationPath, '/', sourceFiles$segmentationFiles[1]))
+statistics$size = apply(statistics[,c('w','h')], 1, max)
+statistics = statistics[statistics$size >= min(roiIndex$width, na.rm = T), ] # only want to actually look at the larger ROIs (perimeter > 100).
+
 if (length(sourceFiles$segmentationFiles) > 1) {
   for (i in 2:length(sourceFiles$segmentationFiles)) {
     message('Loading statistics file ', i)
     tmp = loadMeasurement(paste0(sourceFiles$segmentationPath, '/', sourceFiles$segmentationFiles[i]))
+    tmp$size = apply(tmp[,c('w','h')], 1, max)
+    tmp = tmp[tmp$size >= min(roiIndex$width, na.rm = T), ] # only want to actually look at the larger ROIs (perimeter > 100).
+    
     statistics = rbind(statistics, tmp)
   }
 }
-statistics$size = apply(statistics[,c('w','h')], 1, max)
-statistics = statistics[statistics$size >= min(roiIndex$width, na.rm = T), ] # only want to actually look at the larger ROIs (perimeter > 100).
-
 
 for (i in 1:nrow(roiIndex)) {
   if (i %% 1000 == 0) {

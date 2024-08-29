@@ -102,7 +102,7 @@ def DenseNet(input_shape, num_classes):
     x = tf.keras.layers.Activation('relu')(x)
     x = tf.keras.layers.MaxPooling2D(pool_size=(3, 3), strides=(2, 2), padding='same')(x)
     
-    ## DenseNet121 (116 internal)
+    ## DenseNet121 (84 internal)
     x = dense_block(x, num_layers=6, growth_rate=32)
     x = transition_block(x, compression=0.5)
     x = dense_block(x, num_layers=12, growth_rate=32)
