@@ -16,7 +16,7 @@
         "overwrite" : false
     },
     "classification" : {
-        "model_name" : "kappa121v10",
+        "model_name" : "lambda121v2",
         "model_dir" : "../model",
         "analysis_dir" : "../analysis/",
         "scnn_instances" : 1,
@@ -27,12 +27,12 @@
     },
     "training" : {
         "scnn_dir" : "../training/training_set_20240829",
-        "model_name": "lambda89v1",
-        "model_type": "DenseNet89",
+        "model_name": "lambda121v2",
+        "model_type": "DenseNet121",
         "model_path": "../model/",
         "image_size": 128,
         "start" : 0,
-        "stop" : 200,
+        "stop" : 300,
         "validationSetRatio" : 0.25,
         "batchsize" : 128,
         "seed": 123,

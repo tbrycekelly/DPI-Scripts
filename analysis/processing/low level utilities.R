@@ -98,6 +98,9 @@ classify = function(prediction, weights = NULL) {
 
 getPrior = function(prediction) {
   stats = data.frame(class = colnames(prediction), n = NA, weight = NA)
+  #stats$weight = apply(prediction, 2, sum)
+  #stats$weight = stats$weight / sum(stats$weight)
+  
   prediction = apply(prediction, 1, which.max)
   for (i in 1:nrow(stats)) {
     k = which(prediction == i)

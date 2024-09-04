@@ -31,30 +31,16 @@ License:
 import os
 import sys
 import shutil
-import argparse
-import glob
 import logging
-import configparser
 import logging.config
-import tqdm
-import subprocess
-import datetime
 from time import time
 from multiprocessing import Pool
-from queue import Queue
-import psutil
-import tensorflow as tf
-import seaborn as sns
-import matplotlib.pyplot as plt
 import numpy as np
-import pathlib
 import csv
 from PIL import Image
 import os
-import pandas as pd
 import json
 from logging.handlers import TimedRotatingFileHandler
-from multiprocessing import Process
 import cv2
 import concurrent.futures
 
@@ -128,6 +114,7 @@ def setup_logger(name, config):
   error_handler.setLevel(logging.ERROR)
   logger.addHandler(error_handler)
   return logger
+
 
 class Frame:
     def __init__(self, fpath, name, frame, n, filename):
