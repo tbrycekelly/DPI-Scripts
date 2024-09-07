@@ -219,13 +219,13 @@ if __name__ == "__main__":
         prediction_labels = np.argmax(predictions, axis=-1)
         prediction_labels = [sidecar['labels'][i] for i in prediction_labels]
         df = pd.DataFrame(predictions, index=image_files)
-        df_short = pd.DataFrame(prediction_labels, index=image_files)
+        #df_short = pd.DataFrame(prediction_labels, index=image_files)
         
         
         df.columns = sidecar['labels']
         df.to_csv(classification_output_filepath, index=True, header=True, sep=',')
-        df_short.columns = ['prediction']
-        df_short.to_csv(classification_dir + '/' + r2 + '_' + 'predictionlist.csv', index=True, header=True, sep=',')
+        #df_short.columns = ['prediction']
+        #df_short.to_csv(classification_dir + '/' + r2 + '_' + 'predictionlist.csv', index=True, header=True, sep=',')
         
         logger.debug('Cleaning up unpacked archive files.')
         delete_file(segmentation_dir + '/' + r2 + "/", logger)

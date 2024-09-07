@@ -10,7 +10,7 @@ pMin = 0.0 # minimum probability for pulled images (0 = pull all, 0.9 = 90% conf
 camera = 'camera1'
 transect = 'SewardLine_Summer22'
 segmentationName = 'REG'
-modelName = 'lambda121v1'
+modelName = 'lambda121v2'
 
 
 #### Autopilot from here:
@@ -25,6 +25,7 @@ sourceFiles = list(
 sourceFiles$segmentationFiles = list.files(sourceFiles$segmentationPath, pattern = 'statistics.csv')
 sourceFiles$classificationFiles = list.files(sourceFiles$classificationPath, pattern = 'prediction.csv')
 
+message('Found ', length(sourceFiles$classificationFiles), ' classification results.')
 
 ## Calculate priors from full dataset:
 nSample = max(min(500, length(sourceFiles$classificationFiles)), length(sourceFiles$classificationFiles) * 0.2)
@@ -110,7 +111,7 @@ for (folder in list.dirs(outputDir)[-1]) {
   }
 }
 
-zip(outputDir, zipfile = paste0(outputDir, '.zip'))
+ zip(outputDir, zipfile = paste0(outputDir, '.zip'))
 
 
 
