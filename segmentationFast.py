@@ -34,7 +34,6 @@ import shutil
 import logging
 import logging.config
 from time import time
-from multiprocessing import Pool
 import numpy as np
 import csv
 from PIL import Image
@@ -141,7 +140,7 @@ class Frame:
 
 
 
-def process_frame(frame, config): ## TODO: write metadata file
+def process_frame(frame, config):
     logger.debug('Started worker thread.')
 
     logger.debug(f"Pulled frame from queue. Processing {frame.get_name()}.")
@@ -260,7 +259,7 @@ if __name__ == "__main__":
     with open('config.json', 'r') as f:
         config = json.load(f)
 
-    v_string = "V2024.05.21"
+    v_string = "V2024.10.04"
     logger = setup_logger('Segmentation (Main)', config)
     logger.info(f"Starting segmentation script {v_string}")
 
@@ -291,8 +290,7 @@ if __name__ == "__main__":
         logger.debug(f"Found AVI file {idx}: {av}.")
 
     ## Prepare workers for receiving frames
-    num_threads = os.cpu_count() - 2
-    #num_threads = 4
+    num_threads = min(os.cpu_count() - 2, len(avis))
     logger.info(f"Starting processing with {num_threads} processes...")
     with concurrent.futures.ProcessPoolExecutor(max_workers=num_threads) as executor:
         future_to_file = {executor.submit(process_avi, segmentation_dir, config, filename): filename for filename in avis}

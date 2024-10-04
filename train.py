@@ -45,6 +45,7 @@ import json
 import platform
 import time
 import sys
+from logging.handlers import TimedRotatingFileHandler
 
 
 def is_file_above_minimum_size(file_path, min_size, logger):

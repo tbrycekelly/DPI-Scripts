@@ -4,7 +4,7 @@ source('processing/mid level utilities.R')
 
 #### User input: 
 
-modelName = 'iota121v1'
+modelName = 'lambda121v1'
 dataPath = '../../'
 outputDir = 'export/'
 camera = 'camera0'
@@ -48,3 +48,5 @@ loss = -log2(p)
 hist(loss)
 summary(loss)
 mean(loss)
+
+plot(-log2(p))

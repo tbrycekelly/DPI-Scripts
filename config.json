@@ -5,14 +5,14 @@
         "log_path" : "../logs/"
     },
     "segmentation" : {
-        "diagnostic" : false,
+        "diagnostic" : true,
         "basename" : "REG",
         "analysis_dir" : "../analysis/",
         "min_perimeter" : 100,
         "max_perimeter" : 40000,
         "min_perimeter_statsonly" : 20,
-        "flatfield_q" : 0.1,
-        "calibration_image" : "../raw/camera0/sexton2019/median_image.jpg",
+        "flatfield_q" : 0.2,
+        "calibration_image" : "../raw/camera0/shadowgraph/median_image.jpg",
         "overwrite" : false
     },
     "classification" : {
