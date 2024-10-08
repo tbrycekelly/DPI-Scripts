@@ -1,3 +1,35 @@
+### 0. Preface and Prerequsites
+This guide provides several flavors of quick start guides meant to help a first time (or returning) user to get setup and running quickly. This assumes a working computer (desktop, laptop, or server) environemnt that meets the goals of the user. For example, if you are not planning on training a new or existing model, then a graphics card is not stricktly necessary. These guides are not intended to provide detailed guides for every possible configuration, but they should provide a useful selection of options.
+
+Available flavors below include:
+
+1. Local Windows Desktop: Desktop with GPU. Easiest setup for most first-tiem users.
+2. Local Mac Laptop: Mobile setup useful for testing code but training is not currently supported (unstable). 
+3. Ubuntu Server (managed): For shared use facilities where user must submit jobs and does not have root access.
+4. Ubuntu Server (bare-metal): For an in-house HPC where user has full control. 
+
+---
+
+## Local Windwos Desktop
+
+
+---
+
+## Local Mac Laptop
+
+
+---
+
+## Managed Ubuntu Server
+
+
+---
+
+## Unmanaged Ubuntu Server
+
+
+---
+
 
 ## 1. Download DPI-Scripts
 

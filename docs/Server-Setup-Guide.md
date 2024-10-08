@@ -1,3 +1,6 @@
+This guide is designed for a turn-key DPI-Scripts processing server assuming bare-metal access to a server/desktop. This guide will cover hardware setup considerations, OS installation and setup, filesystem management, and finally script setup and testing. If any of this does not sound like what you are looking for, then I'd suggest checking out the more general [DPI-Scripts Setup](DPI-Scripts-Setup.md) instead.
+
+
 ## 1. Recommended Installs
 These are common utilities and/or prerequisites for one or more of the steps recommended by this setup document.
 

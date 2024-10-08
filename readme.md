@@ -7,12 +7,10 @@ These scripts were originally inspired by the _Plankline_ project controlled by 
 
 The DPI-Scripts suite of processing scripts is split into three main modules: (1) segmentation, (2) classification, and (3) training; and is unified with the scripts in this repository. This pipeline uses OTSU Thresholding for segmentation and a DenseNet121 [[2]](#2) neural network for image classification. 
 
-If you are new to linux and setting up a DPI-Scripts instance for the first time, please consider skimming the [Linux Help Guide](docs/Linux-Help-Guide.md). Otherwise, please follow below for the quick setup guide.
+If you are new to linux and setting up a DPI-Scripts instance for the first time, then please review the [DPI-Scripts Quick Start Guide](docs/DPI-Scripts-Setup.md); or if you are starting a bare-metal setup then please review the [Detailed Server Setup](docs/Server-Setup-Guide.md). 
 
 ## Overview
-
-
-## 1. Hardware Requirements
+#### 1. Hardware Requirements
 __Data Storage__
 - Min: 8 TB
 - Recommend SSD and/or RAID0 for high-throughput access.
@@ -26,12 +24,12 @@ __Networking__
 Recommend 10Gbe for raw data transfer.
 
 __Nvidia GPU (recommended)__
-- CUDA-compatible GPU with at least 8GB ram
+- CUDA-compatible GPU with at least 8GB vram
     - RTX 30 series or later (recommended)
     - RTX 3060 12GB (tested)
     - RTX 4060 8GB (tested)
 
-## 2. Software Requirements
+#### 2. Software Requirements
 
 __Operating System (tested)__
 - Windows 10 (or later)
@@ -51,7 +49,7 @@ __CUDA Support (recommended)__
 - cuda-nvcc 12.2
 
 
-## 3. Quick Start & Usage
+#### 3. Quick Start & Usage
 
 To run plankline with a specific configuration file and input directory:
 
@@ -64,12 +62,12 @@ To run plankline with a specific configuration file and input directory:
 So for example:
 
     python3 segmentation.py /data/raw/camera0/test1
-    python3 classification.py /data/analysis/camera0/test1-REG
+    python3 classification.py ../analysis/camera0/test1-REG
 
     python3 train.py
     
 
-## Status
+#### Status
 
 __Project-wide__
 - [x] General: use common config file
@@ -102,7 +100,7 @@ __Post-processing__
 - [ ] Postprocessing: Rmarkdown for preliminary report
 
 
-## References
+#### References
 
 <a id="1">[1]</a> Schmid Moritz S, Daprano Dominic, Jacobson Kyler M, Sullivan Christopher, Briseño-Avena Christian, Luo, Jessica Y, & Cowen, Robert K. (2021). A Convolutional Neural Network based high-throughput image classification pipeline (1.0.0). Zenodo. [https://doi.org/10.5281/zenodo.4641158](https://doi.org/10.5281/zenodo.4641158)
 
