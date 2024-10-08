@@ -23,7 +23,7 @@
         "batchsize" : 128,
         "image_size" : 128,
         "cpuonly" : false,
-        "overwrite" : false
+        "overwrite" : true
     },
     "training" : {
         "scnn_dir" : "../training/training_set_20240829",
@@ -36,6 +36,6 @@
         "validationSetRatio" : 0.25,
         "batchsize" : 128,
         "seed": 123,
-        "overwrite" : false
+        "overwrite" : true
     }
 }

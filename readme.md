@@ -79,24 +79,27 @@ __Project-wide__
 - [x] Documentation: Write readme
 - [ ] Documentation: Provide project overview description and presentation
 - [ ] Documentation: Write install and setup guide
+- [ ] Update to logging file rotater?
 
 __Training__
-- [ ] General: deal with overwriting
+- [x] General: deal with overwriting
 - [x] Model output: implement sidecar JSON
-- [ ] Model output: safe model summary to file
+- [ ] Model output: save model summary to file
 - [ ] Documentation: Detailed
 
 __Segmentation__
-- [ ] General: deal with overwriting
+- [x] General: deal with overwriting
 - [ ] Improve diagnostic image output: full frames w/ ROIs
 - [ ] Documentation: Detailed
 
 __Classification__
-- [ ] General: deal with overwriting
+- [x] General: deal with overwriting
 - [ ] Documentation: Detailed
 
 __Post-processing__
 - [ ] Documentation: Detailed
+- [ ] Postprocessing: Model training summary and visualization
+- [ ] Postprocessing: Rmarkdown for preliminary report
 
 
 ## References
