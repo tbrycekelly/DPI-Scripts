@@ -140,7 +140,7 @@ class Frame:
 
 
 
-def process_frame(frame, config):
+def process_frame(frame, config, logger):
     logger.debug('Started worker thread.')
 
     logger.debug(f"Pulled frame from queue. Processing {frame.get_name()}.")
@@ -162,19 +162,18 @@ def process_frame(frame, config):
     n = frame.get_n()
     filename = frame.get_filename()
     stats = []
+    grayAnnotated = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
-    if config['segmentation']['diagnostic']:
-        logger.debug('Saving diagnostic images.')
-        cv2.imwrite(f'{path}{filename}-{n:06}-qualtilefield.jpg', gray)
-        cv2.imwrite(f'{path}{filename}-{n:06}-threshold.jpg', thresh)
-
+    # Open statistics file and iterate through all identified ROIs.
     with open(f'{path[:-1]} statistics.csv', 'a', newline='\n') as outcsv:
         logger.debug(f"Writing to statistics.csv. Found {len(cnts)} ROIs.")
         outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
         for i in range(len(cnts)):
             x,y,w,h = cv2.boundingRect(cnts[i])
             area = cv2.contourArea(cnts[i])
-            if 2*w + 2*h > int(config['segmentation']['min_perimeter_statsonly']):
+
+            # If ROI is of useful minimum size.
+            if 2*w + 2*h >= int(config['segmentation']['min_perimeter_statsonly']):
                 if len(cnts[i]) >= 5:  # Minimum number of points required to fit an ellipse
                     ellipse = cv2.fitEllipse(cnts[i])
                     center, axes, angle = ellipse
@@ -184,8 +183,13 @@ def process_frame(frame, config):
                     major_axis_length = -1
                     minor_axis_length = -1
 
-                if 2*w + 2*h >= int(config['segmentation']['min_perimeter']) and 2*w + 2*h <= int(config['segmentation']['max_perimeter']) :
-                        
+                # If ROI is within size limits for saving an image. 
+                if 2*w + 2*h >= int(config['segmentation']['min_perimeter']) and 2*w + 2*h <= int(config['segmentation']['max_perimeter']):
+                    
+                    if config['segmentation']['diagnostic']:
+                        cv2.rectangle(grayAnnotated, (x, y), (x+w, y+h), (0,0,255), 1)
+
+                    # Save crop as a square ROI. Need to determine size and padding.
                     size = max(w, h)
                     im = Image.fromarray(gray[y:(y+h), x:(x+w)])
                     im_padded = Image.new(im.mode, (size, size), (255))
@@ -198,8 +202,18 @@ def process_frame(frame, config):
                         top = 0
                     im_padded.paste(im, (left, top))
                     im_padded.save(f"{path}{filename}-{n:06}-{i:06}.png")
+                
+                # Write stats to file:
                 stats = [n, i, x + w/2, y + h/2, w, h, major_axis_length, minor_axis_length, area]
                 outwritter.writerow(stats)
+
+    # Save optional diagnsotic images before returning.
+    if config['segmentation']['diagnostic']:
+        logger.debug('Saving diagnostic images.')
+        cv2.imwrite(f'{path}{filename}-{n:06}-qualtilefield.jpg', gray)
+        cv2.imwrite(f'{path}{filename}-{n:06}-annotated.jpg', grayAnnotated)
+        cv2.imwrite(f'{path}{filename}-{n:06}-threshold.jpg', thresh)
+
     return True
                 
 
@@ -235,6 +249,7 @@ def process_avi(segmentation_dir, config, avi_path):
     except PermissionError:
         logger.error(f"Permission denied when making directory {output_path}.")
 
+    # Open video file, initialize statistcs file, and start going through frames.
     video = cv2.VideoCapture(avi_path)
     if not video.isOpened():
         return
@@ -248,10 +263,28 @@ def process_avi(segmentation_dir, config, avi_path):
         ret, frame = video.read()
         if ret:
             if not frame is None:
-                process_frame(Frame(avi_path, output_path, frame, n, filename.replace('.avi', '')), config)
+                process_frame(Frame(avi_path, output_path, frame, n, filename.replace('.avi', '')), config, logger)
                 n += 1 # Increment frame counter.
         else:
             break
+
+
+def cleanupFile(av, segmentation_dir, config):
+    logger = setup_logger('Segmentation (Worker)', config)
+    _, filename = os.path.split(av)
+    output_path = segmentation_dir + os.path.sep + filename + os.path.sep
+    logger.debug(f"Compressing to archive {filename + '.zip.'}")
+    if is_file_above_minimum_size(segmentation_dir + os.path.sep + filename + '.zip', 0, logger):
+        if config['segmentation']['overwrite']:
+            logger.warn(f"archive exists for {filename} and overwritting is allowed. Deleting old archive.")
+            delete_file(segmentation_dir + os.path.sep + filename + '.zip', logger)
+        else:
+            logger.warn(f"archive exists for {filename} and overwritting is allowed. Skipping Archiving")
+
+    shutil.make_archive(segmentation_dir + os.path.sep + filename, 'zip', output_path)
+    if not config['segmentation']['diagnostic']:
+        logger.debug(f"Cleaning up output path: {output_path}.")
+        delete_file(output_path, logger)
 
 
 if __name__ == "__main__":
@@ -309,24 +342,23 @@ if __name__ == "__main__":
                 logger.info(f"Processed {n} of {len(avis)} files.\t\t Estimated remainder: {(end_time - init_time)/n*(len(avis)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time)/60:.1f} minutes.")
                 n += 1
 
-    if len(avis) > 0:
-        logger.info('Archiving results and cleaning up.')
-        for av in avis:
-            _, filename = os.path.split(av)
-            output_path = segmentation_dir + os.path.sep + filename + os.path.sep
-            logger.debug(f"Compressing to archive {filename + '.zip.'}")
-            if is_file_above_minimum_size(segmentation_dir + os.path.sep + filename + '.zip', 0, logger):
-                if config['segmentation']['overwrite']:
-                    logger.warn(f"archive exists for {filename} and overwritting is allowed. Deleting old archive.")
-                    delete_file(segmentation_dir + os.path.sep + filename + '.zip', logger)
-                else:
-                    logger.warn(f"archive exists for {filename} and overwritting is allowed. Skipping Archiving")
-                    continue
-
-            shutil.make_archive(segmentation_dir + os.path.sep + filename, 'zip', output_path)
-            if not config['segmentation']['diagnostic']:
-                logger.debug(f"Cleaning up output path: {output_path}.")
-                delete_file(output_path, logger)
+    logger.info('Archiving results and cleaning up.') # Important to isolate processing and cleanup since the threads don't know when everything is done processing.
+    with concurrent.futures.ProcessPoolExecutor(max_workers=num_threads) as executor:
+        future_to_file = {executor.submit(cleanupFile, filename, segmentation_dir, config): filename for filename in avis}
+    
+        # Wait for all tasks to complete
+        init_time2 = time()
+        n = 1
+        for future in concurrent.futures.as_completed(future_to_file):
+            filename = future_to_file[future]
+            try:
+                future.result()  # Get the result of the computation
+            except Exception as exc:
+                logger.error(f'Processing {filename} generated an exception: {exc}')
+            else:
+                end_time = time()
+                logger.info(f"Cleaning up {n} of {len(avis)} files.\t\t Estimated remainder: {(end_time - init_time2)/n*(len(avis)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time2)/60:.1f} minutes.")
+                n += 1
 
     logger.info(f"Finished segmentation. Total time: {(time() - init_time)/60:.1f} minutes.")
     sys.exit(0) # Successful close

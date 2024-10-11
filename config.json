@@ -5,15 +5,15 @@
         "log_path" : "../logs/"
     },
     "segmentation" : {
-        "diagnostic" : false,
+        "diagnostic" : true,
         "basename" : "REG",
         "analysis_dir" : "../analysis/",
         "min_perimeter" : 100,
         "max_perimeter" : 40000,
         "min_perimeter_statsonly" : 20,
-        "flatfield_q" : 0.2,
+        "flatfield_q" : 0.1,
         "calibration_image" : "../raw/camera0/shadowgraph/median_image.jpg",
-        "overwrite" : false
+        "overwrite" : true
     },
     "classification" : {
         "model_name" : "lambda121v2",
@@ -36,6 +36,6 @@
         "validationSetRatio" : 0.25,
         "batchsize" : 128,
         "seed": 123,
-        "overwrite" : true
+        "overwrite" : false
     }
 }

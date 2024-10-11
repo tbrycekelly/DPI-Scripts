@@ -171,7 +171,7 @@ def process_frame(frame, config):
             
         gray = np.array(gray)
         # Rescale to enahnce contrast:
-        gray = 16.0 * (gray // 16) # posterize to 16 values.
+        #gray = 16.0 * (gray // 16) # posterize to 16 values.
         gray = 255.0 * (gray - np.min(gray)) / (np.max(gray) - np.min(gray))
         gray = gray.clip(0,255).astype(np.uint8)
 
