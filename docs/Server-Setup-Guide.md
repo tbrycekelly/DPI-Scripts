@@ -51,8 +51,14 @@ __Set hostname:__ This is how you set the computer name. Our current convention 
 __Add users:__ 
 
     sudo adduser XXXX
+
+To add a new primary (or default) group:
+
+    sudo usermod -g plankline XXXXX
+
+To add additional, secondary group permissions, for example the sudo group: 
+
     sudo usermod -aG sudo XXXXX
-    sudo usermod -aG plankline XXXXX
 
 
 __Setup Automounting:__ On Ubuntu, automounting is configured by the fstab file and is automatically run during system startup. 
@@ -60,14 +66,11 @@ __Setup Automounting:__ On Ubuntu, automounting is configured by the fstab file 
     lsblk
     sudo nano /etc/fstab
 
-"/dev/sdX	/media/plankline/Data	ext4	rw,acl	0	0"
+"/dev/sdX	/data	xfs	rw,acl	0	0"
 
-    mkdir -p /media/plankline/data
-    sudo chmod -R 777 /media/plankline
+    mkdir /data
+    sudo chmod -R 776 /data/DPI
     sudo mount -a
-
-    sudo setfacl -PRdm u::rwx,g::rw,o::rw /media/plankline
-
 
 
 ## 5. Networking
@@ -189,13 +192,13 @@ To test disk IO, here's a one liner that will write a file of all zero's to a ta
 
 Example Results for *Plankline-2*:
 
-    plankline-2:/media/plankline/Data/Data		654 MB/s
+    plankline-2:/data		654 MB/s
     plankline-2:/tmp				            1100 MB/s
     plankline-2:/home/tbkelly			        928 MB/s
 
 __Recommended test set:__
 
-    dd if=/dev/zero of=/media/plankline/Data/Data/tmp.data bs=10G count=1 oflag=dsync
+    dd if=/dev/zero of=/data/tmp.data bs=10G count=1 oflag=dsync
     dd if=/dev/zero of=/tmp/tmp.data bs=10G count=1 oflag=dsync
     dd if=/dev/zero of=/home/tbkelly/tmp.data bs=10G count=1 oflag=dsync
 
