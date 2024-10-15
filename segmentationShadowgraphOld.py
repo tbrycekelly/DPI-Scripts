@@ -141,7 +141,7 @@ class Frame:
 
 
 
-def process_frame(frame, config):
+def process_frame(q, config): ## TODO: write metadata file
     """
     This function processes each frame (provided as cv2 image frame) for flatfielding and segmentation. The steps include
     1. Flatfield intensities as indicated
@@ -152,79 +152,82 @@ def process_frame(frame, config):
     logger = setup_logger('Shadowgraph Segmentation (worker)', config)
     logger.debug("Process started.")
     
-    logger.debug(f"Pulled frame from queue. Processing {frame.get_name()} {frame.get_n()}.")
+    while True:
+        frame = q.get()
+        logger.debug(f"Pulled frame from queue. Processing {frame.get_name()} {frame.get_n()}.")
         
-    image = np.array(cv2.imread(frame.read()))
-    # Check for compatible sizes:
-    if image.shape != frame.calibration().shape:
-        logger.debug(f"Image sizes for the frame and clibration images are not the same: {frame.get_name()} {frame.get_n()}.")
-    else:
-        gray = image / frame.calibration() * 255
-        gray = gray.clip(0,255).astype(np.uint8)
+        image = np.array(cv2.imread(frame.read()))
+        # Check for compatible sizes:
+        if image.shape != frame.calibration().shape:
+            logger.debug(f"Image sizes for the frame and clibration images are not the same: {frame.get_name()} {frame.get_n()}.")
+        else:
+            gray = image / frame.calibration() * 255
+            gray = gray.clip(0,255).astype(np.uint8)
 
-        gray = ~gray
-        mask = np.zeros(gray.shape[:2], dtype="uint8")
-        cv2.circle(mask, (gray.shape[1]//2, gray.shape[0]//2), 1100, 255, -1)
-        gray = cv2.bitwise_and(gray, gray, mask = mask) # Mask
-        gray = ~gray
-        gray = cv2.cvtColor(gray, cv2.COLOR_BGR2GRAY)
+            gray = ~gray
+            mask = np.zeros(gray.shape[:2], dtype="uint8")
+            cv2.circle(mask, (gray.shape[1]//2, gray.shape[0]//2), 1100, 255, -1)
+            gray = cv2.bitwise_and(gray, gray, mask = mask) # Mask
+            gray = ~gray
+            gray = cv2.cvtColor(gray, cv2.COLOR_BGR2GRAY)
             
-        gray = np.array(gray)
-        # Rescale to enahnce contrast:??? TODO
-        gray = 255.0 * (gray - np.min(gray)) / (np.max(gray) - np.min(gray))
-        gray = gray.clip(0,255).astype(np.uint8)
+            gray = np.array(gray)
+            # Rescale to enahnce contrast:
+            gray = 16.0 * (gray // 16) # posterize to 16 values.
+            gray = 255.0 * (gray - np.min(gray)) / (np.max(gray) - np.min(gray))
+            gray = gray.clip(0,255).astype(np.uint8)
 
             # Apply Otsu's threshold
-        thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
-        cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+            thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+            cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            cnts = cnts[0] if len(cnts) == 2 else cnts[1]
 
-        name = frame.get_name()
-        n = frame.get_n()
-        logger.debug(f"Thresholding frame {n}.")
-        stats = []
+            name = frame.get_name()
+            n = frame.get_n()
+            logger.debug(f"Thresholding frame {n}.")
+            stats = []
 
-        if config['segmentation']['diagnostic']:
-            logger.debug(f"Diagnostic mode, saving threshold image and quantiledfiled image.")
-            cv2.imwrite(f'{name}{n:06}-qualtilefield.jpg', gray)
-            cv2.imwrite(f'{name}{n:06}-threshold.jpg', thresh)
+            if config['segmentation']['diagnostic']:
+                logger.debug(f"Diagnostic mode, saving threshold image and quantiledfiled image.")
+                cv2.imwrite(f'{name}{n:06}-qualtilefield.jpg', gray)
+                cv2.imwrite(f'{name}{n:06}-threshold.jpg', thresh)
 
-        with open(f'{name[:-1]} statistics.csv', 'a', newline='\n') as outcsv:
-            outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
-            for i in range(len(cnts)):
-                x,y,w,h = cv2.boundingRect(cnts[i])
-                area = cv2.contourArea(cnts[i])
-                if 2*w + 2*h > int(config['segmentation']['min_perimeter_statsonly']):
-                    if len(cnts[i]) >= 5:  # Minimum number of points required to fit an ellipse
-                        ellipse = cv2.fitEllipse(cnts[i])
-                        center, axes, angle = ellipse
-                        major_axis_length = round(max(axes),1)
-                        minor_axis_length = round(min(axes),1)
-                    else :
-                        major_axis_length = -1
-                        minor_axis_length = -1
-                    #mean_gray_value = np.mean(gray[y:(y+h), x:(x+w)])
+            with open(f'{name[:-1]} statistics.csv', 'a', newline='\n') as outcsv:
+                outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
+                for i in range(len(cnts)):
+                    x,y,w,h = cv2.boundingRect(cnts[i])
+                    area = cv2.contourArea(cnts[i])
+                    if 2*w + 2*h > int(config['segmentation']['min_perimeter_statsonly']):
+                        if len(cnts[i]) >= 5:  # Minimum number of points required to fit an ellipse
+                            ellipse = cv2.fitEllipse(cnts[i])
+                            center, axes, angle = ellipse
+                            major_axis_length = round(max(axes),1)
+                            minor_axis_length = round(min(axes),1)
+                        else :
+                            major_axis_length = -1
+                            minor_axis_length = -1
+                        #mean_gray_value = np.mean(gray[y:(y+h), x:(x+w)])
 
-                    if 2*w + 2*h >= int(config['segmentation']['min_perimeter']) and 2*w + 2*h <= int(config['segmentation']['max_perimeter']) :
+                        if 2*w + 2*h >= int(config['segmentation']['min_perimeter']) and 2*w + 2*h <= int(config['segmentation']['max_perimeter']) :
                             
-                        size = max(w, h)
-                        im = Image.fromarray(gray[y:(y+h), x:(x+w)])
-                        im_padded = Image.new(im.mode, (size, size), (255))
-                        if (w > h):
-                            left = 0
-                            top = (size - h)//2
-                        else:
-                            left = (size - w)//2
-                            top = 0
-                        im_padded.paste(im, (left, top))
-                        im_padded.save(f"{name}{n:06}-{i:06}.png")
-                    stats = [n, i, x + w/2, y + h/2, w, h, major_axis_length, minor_axis_length, area]
-                    outwritter.writerow(stats)
-        logger.debug(f"Done with frame {n}.")
+                            size = max(w, h)
+                            im = Image.fromarray(gray[y:(y+h), x:(x+w)])
+                            im_padded = Image.new(im.mode, (size, size), (255))
+                            if (w > h):
+                                left = 0
+                                top = (size - h)//2
+                            else:
+                                left = (size - w)//2
+                                top = 0
+                            im_padded.paste(im, (left, top))
+                            im_padded.save(f"{name}{n:06}-{i:06}.png")
+                        stats = [n, i, x + w/2, y + h/2, w, h, major_axis_length, minor_axis_length, area]
+                        outwritter.writerow(stats)
+            logger.debug(f"Done with frame {n}.")
                 
 
 
-def process_image_dir(img_path, segmentation_dir, config):
+def process_image_dir(img_path, segmentation_dir, config, q):
     """
     This function will take an image folder as input and perform the following steps:
     1. Create output file structures/directories
@@ -247,8 +250,9 @@ def process_image_dir(img_path, segmentation_dir, config):
     
     for f in os.listdir(img_path):
       if f.endswith(('.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG')):
-          logger.debug(f"Processing image {f}.")
-          process_frame(Frame(f, output_path, img_path + os.path.sep + f, bkg, f), config)
+          newframe = Frame(f, output_path, img_path + os.path.sep + f, bkg, f)
+          q.put(newframe, block = True)
+          logger.debug(f"Added image {f} to queue.")
       else:
         logger.debug(f"Skipped reading non-image file {f}.") 
 
@@ -296,7 +300,7 @@ if __name__ == "__main__":
     with open('config.json', 'r') as f:
         config = json.load(f)
 
-    v_string = "V2024.10.04"
+    v_string = "V2024.05.21"
 
     logger = setup_logger('Shadowgraph Segmentation (main)', config)
     logger.info(f"Starting Shadowgraph segmentation script {v_string}")
@@ -316,6 +320,7 @@ if __name__ == "__main__":
     
     segmentation_dir = segmentation_dir + f"-{config['segmentation']['basename']}" # /media/plankline/Data/analysis/segmentation/Camera1/segmentation/Transect1-REG
     logger.debug(f"Segmentation directory: {segmentation_dir}")
+    
     os.makedirs(segmentation_dir, int(config['general']['dir_permissions']), exist_ok = True)
 
     ## Find files to process:
@@ -326,32 +331,42 @@ if __name__ == "__main__":
     for idx, f in enumerate(imgsets):
         logger.debug(f"Found ubfolder {idx}: {f}.")
 
+    ## Prepare workers for receiving frames
+    num_threads = os.cpu_count() - 1
+    max_queue = num_threads * 8 # Prepare 4 frames per thread. TODO: test memory vs performance considerations. UPDATE: 4 still seems okay on my laptop.
+    q = Queue(maxsize=int(max_queue))
+    workers = []
+
+    logger.debug(f"Starting {num_threads} processing threads.")
+    logger.debug(f"Initialized queue with size = {max_queue}.")
+    
+    for i in range(num_threads):
+        worker = Process(target=process_frame, args=(q, config,), daemon=True)
+        workers.append(worker)
+        worker.start()
+
     if len(imgsets) > 0:
+        ## Process each imgset:
+        logger.info(f'Starting processing on {len(imgsets)} subfolders.')
+        init_time = time()
+        n = 1
         for im in imgsets:
             start_time = time()
             if not os.path.exists(config['segmentation']['calibration_image']):
                 logger.info('Generating calibration image.')
                 generate_median_image(im, config['segmentation']['calibration_image'])
 
-        num_threads = min(os.cpu_count() - 2, len(imgsets))
-        logger.info(f"Starting processing with {num_threads} processes...")
-        with concurrent.futures.ProcessPoolExecutor(max_workers=num_threads) as executor:
-            future_to_file = {executor.submit(process_image_dir, filename, segmentation_dir, config): filename for filename in imgsets}
-        
-            # Wait for all tasks to complete
-            init_time = time()
-            n = 1
-            for future in concurrent.futures.as_completed(future_to_file):
-                filename = future_to_file[future]
-                try:
-                    future.result()  # Get the result of the computation
-                except Exception as exc:
-                    logger.error(f'Processing {filename} generated an exception: {exc}')
-                else:
-                    end_time = time()
-                    logger.info(f"Processed {n} of {len(imgsets)} files.\t\t Estimated remainder: {(end_time - init_time)/n*(len(imgsets)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time)/60:.1f} minutes.")
-                    n += 1
+            logger.debug(f"Processing image directory {im}.")
+            process_image_dir(im, segmentation_dir, config, q)
+            end_time = time()
+            logger.info(f"Processed {n} of {len(imgsets)} files.\t\t Iteration: {end_time-start_time:.2f} seconds\t Estimated remainder: {(end_time - init_time)/n*(len(imgsets)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time)/60:.1f} minutes.")
+            n+=1
+
+    logger.info('Joining worker processes.')
+    for worker in workers:
+        worker.join(timeout=0.1)
     
+    if len(imgsets) > 0:
         logger.info('Archiving results and cleaning up.')
         for im in imgsets:
             _, filename = os.path.split(im)
@@ -362,7 +377,7 @@ if __name__ == "__main__":
                 logger.debug(f"Cleaning up output path: {output_path}.")
                 delete_file(output_path, logger)
     
-    logger.info(f"Finished segmentation. Total time: {(time() - init_time)/60:.1f} minutes.")
+    logger.info('Finished segmentation.')
     sys.exit(0) # Successful close  
     
 

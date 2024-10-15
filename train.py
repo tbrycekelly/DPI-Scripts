@@ -89,40 +89,40 @@ def delete_file(file_path, logger):
 
 
 def setup_logger(name, config):
-  # The name should be unique, so you can get in in other places
-  # by calling `logger = logging.getLogger('com.dvnguyen.logger.example')
-  logger = logging.getLogger(name) 
-  logger.setLevel(logging.DEBUG) # the level should be the lowest level set in handlers
+    # The name should be unique, so you can get in in other places
+    # by calling `logger = logging.getLogger('com.dvnguyen.logger.example')
+    logger = logging.getLogger(name) 
+    logger.setLevel(logging.DEBUG) # the level should be the lowest level set in handlers
 
-  log_format = logging.Formatter('[%(levelname)s] (%(process)d) %(asctime)s - %(message)s')
-  if not os.path.exists(config['general']['log_path']):
-    os.makedirs(config['general']['log_path'])
-  stream_handler = logging.StreamHandler()
-  stream_handler.setFormatter(log_format)
-  stream_handler.setLevel(logging.INFO)
-  logger.addHandler(stream_handler)
+    log_format = logging.Formatter('[%(levelname)s] (%(process)d) %(asctime)s - %(message)s')
+    if not os.path.exists(config['general']['log_path']):
+        os.makedirs(config['general']['log_path'])
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(log_format)
+    stream_handler.setLevel(logging.INFO)
+    logger.addHandler(stream_handler)
 
-  debug_handler = TimedRotatingFileHandler(f"{config['general']['log_path']}{name} debug.log", interval = 1, backupCount = 14)
-  debug_handler.setFormatter(log_format)
-  debug_handler.setLevel(logging.DEBUG)
-  logger.addHandler(debug_handler)
+    debug_handler = TimedRotatingFileHandler(f"{config['general']['log_path']}{name} debug.log", interval = 1, backupCount = 14)
+    debug_handler.setFormatter(log_format)
+    debug_handler.setLevel(logging.DEBUG)
+    logger.addHandler(debug_handler)
 
-  info_handler = TimedRotatingFileHandler(f"{config['general']['log_path']}{name} info.log", interval = 1, backupCount = 14)
-  info_handler.setFormatter(log_format)
-  info_handler.setLevel(logging.INFO)
-  logger.addHandler(info_handler)
+    info_handler = TimedRotatingFileHandler(f"{config['general']['log_path']}{name} info.log", interval = 1, backupCount = 14)
+    info_handler.setFormatter(log_format)
+    info_handler.setLevel(logging.INFO)
+    logger.addHandler(info_handler)
 
-  error_handler = TimedRotatingFileHandler(f"{config['general']['log_path']}{name} error.log", interval = 1, backupCount = 14)
-  error_handler.setFormatter(log_format)
-  error_handler.setLevel(logging.ERROR)
-  logger.addHandler(error_handler)
-  return logger
+    error_handler = TimedRotatingFileHandler(f"{config['general']['log_path']}{name} error.log", interval = 1, backupCount = 14)
+    error_handler.setFormatter(log_format)
+    error_handler.setLevel(logging.ERROR)
+    logger.addHandler(error_handler)
+    return logger
 
 def conv_block(x, growth_rate):
     x1 = tf.keras.layers.BatchNormalization()(x)
     x1 = tf.keras.layers.Activation('relu')(x1)
-    x1 = tf.keras.layers.Conv2D(growth_rate, (3, 3), padding='same', kernel_initializer=tf.keras.initializers.HeNormal())(x1)
-    x = tf.keras.layers.concatenate([x, x1], axis=-1)
+    x1 = tf.keras.layers.Conv2D(growth_rate, (3, 3), padding = 'same', kernel_initializer = tf.keras.initializers.HeNormal())(x1)
+    x = tf.keras.layers.concatenate([x, x1], axis = -1)
     return x
 
 
@@ -184,6 +184,7 @@ def DenseNet(input_shape, num_classes):
     model = tf.keras.models.Model(inputs, x)
     return model
 
+
 def load_model(config, num_classes):
     if int(config['training']['start']) > 0:
         return(tf.keras.models.load_model(config['training']['model_path'] + '/' + config['training']['model_name'] + '.keras'))
@@ -224,11 +225,8 @@ def init_ts(config):
     return(train_ds, val_ds)
 
 
-if __name__ == "__main__":
-    with open('config.json', 'r') as f:
-        config = json.load(f)
 
-    logger = setup_logger('Training (main)', config)
+def mainTrain(config, logger):
 
     v_string = "V2024.05.22"
     session_id = str(datetime.datetime.now().strftime("%Y%m%d_%H%M%S")).replace(':', '')
@@ -251,13 +249,14 @@ if __name__ == "__main__":
 
     logger.info('Starting to train model.')
     
+    ## Train model
     timer['model_train_start'] = time()
     model, history = train_model(model, config, train_ds, val_ds)
     timer['model_train_end'] = time()
     logger.info('Model trained. Running post-processing steps.')
 
-    model_save_pathname = config['training']['model_path'] + '/' + config['training']['model_name'] + '.keras'
-    json_save_pathname = config['training']['model_path'] + '/' + config['training']['model_name'] + '.json'
+    model_save_pathname = config['training']['model_path'] + os.path.sep + config['training']['model_name'] + '.keras'
+    json_save_pathname = config['training']['model_path'] + os.path.sep + config['training']['model_name'] + '.json'
     if os.path.exists(model_save_pathname):
         if config['training']['overwrite']:
             logger.info(f"Saved keras file exists for {config['training']['model_name']}. Overwrite is enabled so existing file is being removed.")
@@ -269,26 +268,28 @@ if __name__ == "__main__":
         else :
             config['training']['model_name'] = config['training']['model_name'] + '-' + session_id ## Append session ID to model_name from here on out!
             logger.warn(f"Saved keras file exists. Overwrite is not indicated so current model will be saved as {config['training']['model_name'] + '.keras'}.")
-            model_save_pathname = config['training']['model_path'] + '/' + config['training']['model_name'] + '.keras'
-            config['training']['model_path'] + '/' + config['training']['model_name'] + '.json'
+            model_save_pathname = config['training']['model_path'] + os.path.sep + config['training']['model_name'] + '.keras'
+            config['training']['model_path'] + os.path.sep + config['training']['model_name'] + '.json'
     
+
+    ## Post training steps
     logger.debug(f"Saving model keras file to {config['training']['model_path']}.")
     timer['model_save_start'] = time()
     model.save(model_save_pathname)
     timer['model_save_end'] = time()
     logger.debug(f"Model saved to {config['training']['model_name'] + '.keras'}.")
-
+    
     logger.debug('Running preditions on validation dataset.')
     predictions = model.predict(val_ds)
     prediction_matrix = pd.DataFrame(predictions, index = y, columns = train_ds.class_names)
-    prediction_matrix.to_csv(config['training']['model_path'] + '/' + config['training']['model_name'] + ' predictions.csv')
+    prediction_matrix.to_csv(config['training']['model_path'] + os.path.sep + config['training']['model_name'] + ' predictions.csv')
     
     logger.debug('Developing confusion matrix from validation dataset.')
     predictions = np.argmax(predictions, axis = -1)
     confusion_matrix = tf.math.confusion_matrix(y, predictions)
     confusion_matrix = pd.DataFrame(confusion_matrix, index = train_ds.class_names, columns = train_ds.class_names)
-    confusion_matrix.to_csv(config['training']['model_path'] + '/' + config['training']['model_name'] + ' confusion.csv')
-    logger.debug(f"Confusion matrix saved to {config['training']['model_path'] + '/' + config['training']['model_name'] + ' confusion.csv'}")
+    confusion_matrix.to_csv(config['training']['model_path'] + os.path.sep + config['training']['model_name'] + ' confusion.csv')
+    logger.debug(f"Confusion matrix saved to {config['training']['model_path'] + os.path.sep + config['training']['model_name'] + ' confusion.csv'}")
     
     timer['close'] = time()
     
@@ -319,3 +320,13 @@ if __name__ == "__main__":
     
     logger.debug('Training finished.')
     sys.exit(0) # Successful close
+
+
+if __name__ == "__main__":
+    with open('config.json', 'r') as f:
+        config = json.load(f)
+
+    logger = setup_logger('Training (main)', config)
+
+    mainTrain(config, logger)
+
