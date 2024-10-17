@@ -46,6 +46,7 @@ import pandas as pd
 import json
 from logging.handlers import TimedRotatingFileHandler
 from multiprocessing import Process
+from functions import *
 
 
 def is_file_above_minimum_size(file_path, min_size, logger):
@@ -86,46 +87,6 @@ def delete_file(file_path, logger):
         logger.warn(f"Permission denied: unable to delete '{file_path}'.")
     except OSError as e:
         logger.error(f"Error: {e}")
-
-
-def setup_logger(name, config):
-    """
-    Helper function to construct a new logger.
-    """
-    logger = logging.getLogger(name) 
-    logger.setLevel(logging.DEBUG) # the level should be the lowest level set in handlers
-
-    log_format = logging.Formatter('[%(levelname)s] (%(process)d) %(asctime)s - %(message)s')
-    if not os.path.exists(config['general']['log_path']):
-        try:
-            os.makedirs(config['general']['log_path'])
-        except PermissionError:
-            print(f"Permission denied: Unable to create directory '{config['general']['log_path']}'.")
-            print('Logging will not be performed and may crash the script.')
-        except OSError as e:
-            print(f"Error creating directory '{config['general']['log_path']}': {e}")
-            print('Logging will not be performed and may crash the script.')
-
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(log_format)
-    stream_handler.setLevel(logging.INFO)
-    logger.addHandler(stream_handler)
-
-    debug_handler = TimedRotatingFileHandler(f"{config['general']['log_path']}{name} debug.log", interval = 1, backupCount = 14)
-    debug_handler.setFormatter(log_format)
-    debug_handler.setLevel(logging.DEBUG)
-    logger.addHandler(debug_handler)
-
-    info_handler = TimedRotatingFileHandler(f"{config['general']['log_path']}{name} info.log", interval = 1, backupCount = 14)
-    info_handler.setFormatter(log_format)
-    info_handler.setLevel(logging.INFO)
-    logger.addHandler(info_handler)
-
-    error_handler = TimedRotatingFileHandler(f"{config['general']['log_path']}{name} error.log", interval = 1, backupCount = 14)
-    error_handler.setFormatter(log_format)
-    error_handler.setLevel(logging.ERROR)
-    logger.addHandler(error_handler)
-    return logger
 
 
 def loadModel(config, logger):
