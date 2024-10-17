@@ -1,3 +1,16 @@
+import tensorflow as tf
+
+def augmentation_block(x):
+    x = tf.keras.layers.Rescaling(-1. / 255, 1)(x) # Invert shadowgraph image (white vs black)
+    x = tf.keras.layers.RandomRotation(1, fill_mode='constant', fill_value=0.0)(x)
+    x = tf.keras.layers.RandomZoom(0.25, fill_value=0.0, fill_mode='constant')(x)
+    x = tf.keras.layers.RandomTranslation(0.25, 0.25, fill_mode='constant', fill_value=0.0)(x)
+    x = tf.keras.layers.RandomFlip("horizontal_and_vertical")(x)
+    x = tf.keras.layers.RandomBrightness(0.25, value_range=(0.0, 1.0))(x)
+    x = tf.keras.layers.RandomContrast(0.25)(x)
+    x = tf.keras.layers.GaussianNoise(0.1)(x)
+    return x
+
 def conv_block(x, growth_rate):
     x1 = tf.keras.layers.BatchNormalization()(x)
     x1 = tf.keras.layers.Activation('relu')(x1)

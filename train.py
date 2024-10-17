@@ -43,12 +43,11 @@ from PIL import Image
 import pandas as pd
 import json
 import platform
-import time
 import sys
 from logging.handlers import TimedRotatingFileHandler
 
 from functions import *
-from DenseNet import *
+from ConvNet import *
 
 
 
@@ -71,7 +70,7 @@ def load_model(config, num_classes):
 
 
 def init_model(num_classes, img_height, img_width):
-    model = DenseNet([img_height, img_width, 1], num_classes)
+    model = Model([img_height, img_width, 1], num_classes)
     model.compile(optimizer='adam', loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False), metrics=['accuracy'])
     model.summary()
     return(model)

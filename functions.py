@@ -1,3 +1,10 @@
+import logging
+import logging.config
+import os
+import shutil
+from logging.handlers import TimedRotatingFileHandler
+from time import time
+
 def is_file_above_minimum_size(file_path, min_size, logger):
     """
     Check if the file at file_path is larger than min_size bytes.
@@ -42,7 +49,7 @@ def setup_logger(name, config):
     """
     Helper function to construct a new logger.
     """
-    ogger = logging.getLogger(name) 
+    logger = logging.getLogger(name) 
     logger.setLevel(logging.DEBUG) # the level should be the lowest level set in handlers
 
     log_format = logging.Formatter('[%(levelname)s] (%(process)d) %(asctime)s - %(message)s')
