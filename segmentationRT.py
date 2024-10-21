@@ -33,7 +33,7 @@ import sys
 import shutil
 import logging
 import logging.config
-from time import time
+from time import time, sleep
 import numpy as np
 import csv
 from PIL import Image
@@ -43,6 +43,7 @@ from logging.handlers import TimedRotatingFileHandler
 import cv2
 import concurrent.futures
 from functions import *
+import queue
 
 
 class Frame:
@@ -79,9 +80,7 @@ def process_frame(frame, config, logger):
         Statistics
         ROIs
     """
-    logger.debug('Started worker thread.')
-
-    logger.debug(f"Pulled frame from queue. Processing {frame.get_name()}.")
+    #logger.debug(f"Pulled frame from queue. Processing {frame.get_name()}.")
         
     ## Read img and flatfield
     gray = cv2.cvtColor(frame.read(), cv2.COLOR_BGR2GRAY)
@@ -104,7 +103,7 @@ def process_frame(frame, config, logger):
 
     # Open statistics file and iterate through all identified ROIs.
     with open(f'{path[:-1]} statistics.csv', 'a', newline='\n') as outcsv:
-        logger.debug(f"Writing to statistics.csv. Found {len(cnts)} ROIs.")
+        #logger.debug(f"Writing to statistics.csv. Found {len(cnts)} ROIs.")
         outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
         for i in range(len(cnts)):
             x,y,w,h = cv2.boundingRect(cnts[i])
@@ -162,24 +161,18 @@ def process_avi(segmentation_dir, config, avi_path):
     2. Load each frame, pass it through flatfielding and sequentially save segmented targets
     """
     # segmentation_dir: /media/plankline/Data/analysis/segmentation/Camera1/segmentation/Transect1-REG
-    logger = setup_logger('Segmentation (Worker)', config)
+    if 'Segmentation (Worker)' in logging.Logger.manager.loggerDict:
+        logger = logging.getLogger('Segmentation (Worker)')
+    else:
+        logger = setup_logger('Segmentation (Worker)', config)
+
     _, filename = os.path.split(avi_path)
     output_path = segmentation_dir + os.path.sep + filename + os.path.sep
     statistics_filepath = output_path[:-1] + ' statistics.csv'
     
     if is_file_above_minimum_size(statistics_filepath, 0, logger):
-        if config['segmentation']['overwrite']:
-            logger.info(f"Config file enables overwriting, removing files for {filename}.")
-            if os.path.exists(output_path):
-                delete_file(output_path, logger)
-            if os.path.exists(output_path[:-1] + '.zip'):
-                delete_file(output_path[:-1] + '.zip', logger)
-            if os.path.exists(output_path[:-1] + ' statistics.csv'):
-                delete_file(output_path[:-1] + ' statistics.csv', logger)
-
-        else:
-            logger.info(f"Overwritting is not allowed and prior statistics file exists. Skipping {filename}.")
-            return
+        logger.info(f"Already processed file {filename}. Skipping.")
+        return
 
     try:
         os.makedirs(output_path, exist_ok=True)
@@ -196,15 +189,35 @@ def process_avi(segmentation_dir, config, avi_path):
         outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
         outwritter.writerow(['frame', 'crop', 'x', 'y', 'w', 'h', 'major_axis', 'minor_axis', 'area'])
 
+    frameList = []
     n = 1 # Frame count
     while True:
         ret, frame = video.read()
         if ret:
             if not frame is None:
-                process_frame(Frame(avi_path, output_path, frame, n, filename.replace('.avi', '')), config, logger)
+                frameList.append(Frame(avi_path, output_path, frame, n, filename.replace('.avi', '')))
                 n += 1 # Increment frame counter.
         else:
             break
+
+    # Wait for all tasks to complete
+    init_time = time()
+    logger.info(f'Starting processing. Found {len(frameList)} frames.')
+    with concurrent.futures.ProcessPoolExecutor(max_workers=int(config['segmentation']['num_threads'])) as executor:
+         
+        future_to_file = {executor.submit(process_frame, frame, config, logger): frame for frame in frameList}
+                   
+        for future in concurrent.futures.as_completed(future_to_file):
+            filename = future_to_file[future]
+            try:
+                future.result()  # Get the result of the computation
+            except Exception as exc:
+                logger.error(f'Processing {filename} generated an exception: {exc}')
+            else:
+                # Nothing?
+                end_time = time()
+        end_time = time()
+        logger.info(f"Processed frame {len(frameList)} frames.")
 
 
 def cleanupFile(av, segmentation_dir, config):
@@ -272,6 +285,15 @@ def findVideos(raw_dir, config, logger):
 
     return(avis)
 
+def is_file_finished_writing(file_path, wait_time=0.2):
+    initial_size = os.path.getsize(file_path)
+    sleep(wait_time)
+    new_size = os.path.getsize(file_path)
+    
+    if initial_size == new_size:
+        return True
+    return False
+
 
 def mainSegmentation(directory, config, logger):
     """
@@ -288,58 +310,31 @@ def mainSegmentation(directory, config, logger):
     ## Determine directories
     raw_dir = os.path.abspath(directory) # /media/plankline/Data/raw/Camera0/test1
     segmentation_dir = constructSegmentationDir(raw_dir, config)
-
-    ## Find files to process:
-    avis = findVideos(raw_dir, config, logger)
     
-    ## Prepare workers for receiving frames
-    num_threads = min(os.cpu_count() - 2, len(avis))
-    logger.info(f"Starting processing with {num_threads} processes...")
-
-    with concurrent.futures.ProcessPoolExecutor(max_workers=num_threads) as executor:
-        future_to_file = {executor.submit(process_avi, segmentation_dir, config, filename): filename for filename in avis}
-    
-        # Wait for all tasks to complete
+    seenFiles = set()
+    while True:
+        ## Find files to process:
+        avis = set(findVideos(raw_dir, config, logger))
         init_time = time()
-        n = 1
-        for future in concurrent.futures.as_completed(future_to_file):
-            filename = future_to_file[future]
-            try:
-                future.result()  # Get the result of the computation
-            except Exception as exc:
-                logger.error(f'Processing {filename} generated an exception: {exc}')
-            else:
-                end_time = time()
-                logger.info(f"Processed {n} of {len(avis)} files.\t\t Estimated remainder: {(end_time - init_time)/n*(len(avis)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time)/60:.1f} minutes.")
-                n += 1
+        for filename in avis - seenFiles:
+            start_time = time()
+            process_avi(segmentation_dir, config, filename)
+            #cleanupFile(filename, segmentation_dir, config)
+            end_time = time()
+            logger.info(f"Processed new AVI file.\t Elapsed time: {(end_time - start_time):.1f} seconds.")
 
-    logger.info('Archiving results and cleaning up.') # Important to isolate processing and cleanup since the threads don't know when everything is done processing.
-    with concurrent.futures.ProcessPoolExecutor(max_workers = num_threads) as executor:
-        future_to_file = {executor.submit(cleanupFile, filename, segmentation_dir, config): filename for filename in avis}
-    
-        # Wait for all tasks to complete
-        init_time2 = time()
-        n = 1
-        for future in concurrent.futures.as_completed(future_to_file):
-            filename = future_to_file[future]
-            try:
-                future.result()  # Get the result of the computation
-            except Exception as exc:
-                logger.error(f'Processing {filename} generated an exception: {exc}')
-            else:
-                end_time = time()
-                logger.info(f"Cleaning up {n} of {len(avis)} files.\t\t Estimated remainder: {(end_time - init_time2)/n*(len(avis)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time2)/60:.1f} minutes.")
-                n += 1
 
-    logger.info(f"Finished segmentation. Total time: {(time() - init_time)/60:.1f} minutes.")
-    sys.exit(0) # Successful close
+        logger.info(f"Finished segmentation. Total time: {(time() - init_time)/60:.1f} minutes.")
+        seenFiles = avis
+        sleep(int(config['segmentation']['wait_time']))
+        
 
 
 if __name__ == "__main__":
     """
     Entrypoint for script when run from the command line.
     """
-    with open('config.json', 'r') as f:
+    with open('configRT.json', 'r') as f:
         config = json.load(f)
 
     v_string = "V2024.10.14"
@@ -347,3 +342,4 @@ if __name__ == "__main__":
 
     directory = sys.argv[1]
     mainSegmentation(directory, config, logger)
+    sys.exit(0) # Successful close
