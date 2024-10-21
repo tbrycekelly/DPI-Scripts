@@ -22,19 +22,33 @@ def Block(x, filters):
 
 
 def Model(input_shape, num_classes):
+    """
+    Deep convolutional network architecture
+    Citation: Simonyan and Zisserman 2015. Very Deep Convolutional Networks for Large-Scale Image Recognition
 
+    Configurations
+    A: 64,      P,  128,        P,  256, 256,           P, 512, 512,            P,  512, 512
+    B: 64, 64,  P,  128, 128,   P,  256, 256,           P, 512, 512,            P,  512, 512
+    C: 64, 64,  P,  128, 128,   P,  256, 256, 256(1),   P, 512, 512, 512(1),    P,  512, 512, 512(1)
+    D: 64, 64,  P,  128, 128,   P,  256, 256, 256,      P, 512, 512, 512,       P,  512, 512, 512
+    E: 64, 64,  P,  128, 128,   P,  256, 256, 256, 256, P,  512, 512, 512, 512, P,  512, 512, 512, 512
+    """
     ## Init and Augmentation
     inputs = tf.keras.layers.Input(shape=input_shape)
     x = augmentation_block(inputs)
 
+    ## Configurations from 
     x = Block(x, 64)
     x = tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='same')(x)
     x = Block(x, 128)
     x = tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='same')(x)
     x = Block(x, 256)
+    x = Block(x, 256)
     x = tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='same')(x)
     x = Block(x, 512)
+    x = Block(x, 512)
     x = tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='same')(x)
+    x = Block(x, 512)
     x = Block(x, 512)
     x = tf.keras.layers.GlobalAveragePooling2D()(x)
 

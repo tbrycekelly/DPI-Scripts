@@ -35,7 +35,16 @@ def transition_block(x, compression):
 
 
 def Model(input_shape, num_classes):
+    """
+    DenseNet Implementation
+    Citation: Huang, Liu, Maaten, Weinberger. 2018. Densly Connected Convolution Networks.
 
+    Configurations:
+    DenseNet121: D1x6   D2x12   D3x24   D4x16
+    DenseNet169: D1x6   D2x12   D3x32   D4x32
+    DenseNet201: D1x6   D2x12   D3x48   D4x64
+    Densenet264: D1x6   D2x12   D3x64   D4x48
+    """
     ## Init and Augmentation
     inputs = tf.keras.layers.Input(shape=input_shape)
     x = augmentation_block(inputs)
