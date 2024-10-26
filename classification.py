@@ -49,46 +49,6 @@ from multiprocessing import Process
 from functions import *
 
 
-def is_file_above_minimum_size(file_path, min_size, logger):
-    """
-    Check if the file at file_path is larger than min_size bytes.
-
-    :param file_path: Path to the file
-    :param min_size: Minimum size in bytes
-    :return: True if file size is above min_size, False otherwise
-    """
-    if not os.path.exists(file_path):
-        return False
-    try:
-        file_size = os.path.getsize(file_path)
-        return file_size > min_size
-    except OSError as e:
-        logger.error(f"Error: {e}")
-        return False
-
-
-def delete_file(file_path, logger):
-    """
-    Delete the file at file_path.
-
-    :param file_path: Path to the file to be deleted
-    """
-    
-    try:
-        if os.path.isdir(file_path):
-            shutil.rmtree(file_path)
-            logger.debug(f"The folder '{file_path}' has been deleted.")
-        else:
-            os.remove(file_path)
-            logger.debug(f"The file '{file_path}' has been deleted.")
-    except FileNotFoundError:
-        logger.debug(f"The file '{file_path}' does not exist.")
-    except PermissionError:
-        logger.warn(f"Permission denied: unable to delete '{file_path}'.")
-    except OSError as e:
-        logger.error(f"Error: {e}")
-
-
 def loadModel(config, logger):
     """
     Helper function to load model and sidecar. 
@@ -219,6 +179,10 @@ if __name__ == "__main__":
     """
     Entrypoint for running from command line.
     """
+    if not os.path.exists('config.json'):
+        print(f"Required configuration file 'config.json' not found. Aborting.")
+        sys.exit(1)
+    
     with open('config.json', 'r') as f:
         config = json.load(f)
 

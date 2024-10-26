@@ -339,6 +339,10 @@ if __name__ == "__main__":
     """
     Entrypoint for script when run from the command line.
     """
+    if not os.path.exists('config.json'):
+        print(f"Required configuration file 'config.json' not found. Aborting.")
+        sys.exit(1)
+    
     with open('config.json', 'r') as f:
         config = json.load(f)
 

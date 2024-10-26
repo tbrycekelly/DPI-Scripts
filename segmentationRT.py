@@ -160,11 +160,7 @@ def process_avi(segmentation_dir, config, avi_path):
     1. Create output file structures/directories
     2. Load each frame, pass it through flatfielding and sequentially save segmented targets
     """
-    # segmentation_dir: /media/plankline/Data/analysis/segmentation/Camera1/segmentation/Transect1-REG
-    if 'Segmentation (Worker)' in logging.Logger.manager.loggerDict:
-        logger = logging.getLogger('Segmentation (Worker)')
-    else:
-        logger = setup_logger('Segmentation (Worker)', config)
+    logger = setup_logger('Segmentation (Worker)', config)
 
     _, filename = os.path.split(avi_path)
     output_path = segmentation_dir + os.path.sep + filename + os.path.sep
@@ -175,7 +171,7 @@ def process_avi(segmentation_dir, config, avi_path):
         return
 
     try:
-        os.makedirs(output_path, exist_ok=True)
+        os.makedirs(output_path, exist_ok = True)
     except PermissionError:
         logger.error(f"Permission denied when making directory {output_path}.")
 
@@ -334,6 +330,10 @@ if __name__ == "__main__":
     """
     Entrypoint for script when run from the command line.
     """
+    if not os.path.exists('configRT.json'):
+        print(f"Required configuration file 'configRT.json' not found. Aborting.")
+        sys.exit(1)
+    
     with open('configRT.json', 'r') as f:
         config = json.load(f)
 

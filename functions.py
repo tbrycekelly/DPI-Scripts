@@ -49,6 +49,10 @@ def setup_logger(name, config):
     """
     Helper function to construct a new logger.
     """
+    if name in logging.Logger.manager.loggerDict:
+        logger = logging.getLogger(name)
+        return logger
+    
     logger = logging.getLogger(name) 
     logger.setLevel(logging.DEBUG) # the level should be the lowest level set in handlers
 
