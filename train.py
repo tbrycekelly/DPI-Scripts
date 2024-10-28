@@ -47,20 +47,8 @@ import sys
 from logging.handlers import TimedRotatingFileHandler
 
 from functions import *
-from ConvNet import *
-
-
-
-def augmentation_block(x):
-    x = tf.keras.layers.Rescaling(-1. / 255, 1)(x) # Invert shadowgraph image (white vs black)
-    x = tf.keras.layers.RandomRotation(1, fill_mode='constant', fill_value=0.0)(x)
-    x = tf.keras.layers.RandomZoom(0.25, fill_value=0.0, fill_mode='constant')(x)
-    x = tf.keras.layers.RandomTranslation(0.25, 0.25, fill_mode='constant', fill_value=0.0)(x)
-    x = tf.keras.layers.RandomFlip("horizontal_and_vertical")(x)
-    x = tf.keras.layers.RandomBrightness(0.25, value_range=(0.0, 1.0))(x)
-    x = tf.keras.layers.RandomContrast(0.25)(x)
-    x = tf.keras.layers.GaussianNoise(0.1)(x)
-    return x
+#from ConvNet import *
+from ResNet import *
 
 
 def load_model(config, num_classes):
@@ -102,7 +90,20 @@ def init_ts(config):
     
     return(train_ds, val_ds)
 
+def getTensorflowDevices(logger):
+    devices = tf.config.list_physical_devices()
+    gpus = tf.config.list_physical_devices('GPU')
 
+    if gpus:
+        logger.info(f"Found {len(gpus)} Tensorflow-compatible GPUs.")
+        for idx, g in enumerate(gpus):
+            logger.debug(f"Device {idx}: {g}")
+        return gpus
+    else:
+        logger.warn(f"No (compatible) GPUs found, defaulting to CPU execution (n={len(devices)}).")
+        for idx, cpu in enumerate(devices):
+            logger.debug(f"Device {idx}: {cpu}")
+    return devices
 
 def mainTrain(config, logger):
 
@@ -112,6 +113,8 @@ def mainTrain(config, logger):
     logger.info(f"Starting CNN Model Training Script {v_string}")
     logger.debug(f"Session ID is {session_id}.")
     timer = {'init' : time()}
+
+    deviceList = getTensorflowDevices(logger)
 
     # ## Load training and validation data sets
     train_ds, val_ds = init_ts(config)

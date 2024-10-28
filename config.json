@@ -30,8 +30,8 @@
     },
     "training" : {
         "scnn_dir" : "../training/training_set_20240829",
-        "model_name": "lambda121v2",
-        "model_type": "DenseNet121",
+        "model_name": "resnet-1",
+        "model_type": "ResNet Test",
         "model_path": "../model/",
         "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif"],
         "image_size": 128,

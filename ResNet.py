@@ -11,6 +11,7 @@ def augmentation_block(x):
     x = tf.keras.layers.GaussianNoise(0.1)(x)
     return x
 
+
 def Model(input_shape, num_classes):
 
     ## Init and Augmentation
@@ -34,7 +35,7 @@ def Model(input_shape, num_classes):
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Dense(num_classes, activation='softmax')(x)
 
-    model = tf.keras.Model(img_input, x)
+    model = tf.keras.Model(inputs, x)
     return model
 
 

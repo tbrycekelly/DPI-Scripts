@@ -47,6 +47,7 @@ import json
 from logging.handlers import TimedRotatingFileHandler
 from multiprocessing import Process
 from functions import *
+import platform
 
 
 def loadModel(config, logger):
@@ -75,6 +76,7 @@ def mainClassifcation(directory, config, logger):
     v_string = "V2024.05.22"
     #session_id = str(datetime.datetime.now().strftime("%Y%m%d_%H%M%S")).replace(':', '')
     logger.info(f"Starting Plankline Classification Script {v_string}")
+    timer = {'init' : time()}
 
     if not os.path.exists(directory):
         logger.error(f'Specified path ({directory}) does not exist. Stopping.')
@@ -93,9 +95,12 @@ def mainClassifcation(directory, config, logger):
             pass
     
     # Load model
+    timer['model_load_start'] = time()
     model, sidecar = loadModel(config, logger)
-    
+    timer['model_load_end'] = time()
+
     # ### Setup Folders and run classification on each segment output
+    timer['folder_prepare_start'] = time()
     segmentation_dir = os.path.abspath(directory)  # /media/plankline/Data/analysis/segmentation/Camera1/Transect1-reg
     classification_dir = segmentation_dir.replace('segmentation', 'classification')  # /media/plankline/Data/analysis/segmentation/Camera1/Transect1-reg
     classification_dir = classification_dir + '-' + config["classification"]["model_name"] # /media/plankline/Data/analysis/segmentation/Camera1/Transect1-reg-Plankton
@@ -115,9 +120,11 @@ def mainClassifcation(directory, config, logger):
     logger.info(f"Found {len(root)} archives for potential processing.")
     for idx, r in enumerate(root):
         logger.debug(f"Archive {idx}: {r}")
+    timer['folder_prepare_end'] = time()
 
     n = 1
     init_time = time()
+    timer['processing_start'] = time()
     for r in root:
         start_time = time()
         if not is_file_above_minimum_size(segmentation_dir + os.path.sep + r, 128, logger):
@@ -172,7 +179,25 @@ def mainClassifcation(directory, config, logger):
         logger.info(f"Processed {n} of {len(root)} files.\t\t Iteration: {end_time-start_time:.2f} seconds\t Estimated remainder: {(end_time - init_time)/n*(len(root)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time)/60:.1f} minutes.")
         n+=1
     logger.info(f"Finished classification. Total time: {(end_time - init_time)/60:.1f} minutes.")
-    sys.exit(0) # Successful close
+    timer['processing_end'] = time()
+
+    sidecar = {
+        'directory' : directory,
+        'nFiles' : len(root),
+        'script_version' : v_string,
+        'config' : config,
+        'system_info' : {
+            'System' : platform.system(),
+            'Node' : platform.node(),
+            'Release' : platform.release(),
+            'Version' : platform.version(),
+            'Machine' : platform.machine(),
+            'Processor' : platform.processor()
+        },
+        'timings' : timer
+    }
+
+    return sidecar
 
 
 if __name__ == "__main__":
@@ -189,4 +214,5 @@ if __name__ == "__main__":
     logger = setup_logger('Classification (main)', config)
 
     directory = sys.argv[1]
-    mainClassifcation(directory, config, logger)
+    sidecar = mainClassifcation(directory, config, logger)
+    sys.exit(0) # Successful close

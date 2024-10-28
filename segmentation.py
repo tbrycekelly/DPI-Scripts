@@ -43,6 +43,7 @@ from logging.handlers import TimedRotatingFileHandler
 import cv2
 import concurrent.futures
 from functions import *
+import platform
 
 
 class Frame:
@@ -280,6 +281,7 @@ def mainSegmentation(directory, config, logger):
     """
     v_string = "V2024.10.14"
     logger.info(f"Starting segmentation script {v_string}")
+    timer = {'init' : time()}
 
     if not os.path.exists(directory):
         logger.error(f'Specified path ({directory}) does not exist. Stopping.')
@@ -292,6 +294,7 @@ def mainSegmentation(directory, config, logger):
     ## Find files to process:
     avis = findVideos(raw_dir, config, logger)
     
+    timer['processing_start'] = time()
     ## Prepare workers for receiving frames
     num_threads = min(os.cpu_count() - 2, len(avis))
     logger.info(f"Starting processing with {num_threads} processes...")
@@ -312,7 +315,9 @@ def mainSegmentation(directory, config, logger):
                 end_time = time()
                 logger.info(f"Processed {n} of {len(avis)} files.\t\t Estimated remainder: {(end_time - init_time)/n*(len(avis)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time)/60:.1f} minutes.")
                 n += 1
+    timer['processing_end'] = time()
 
+    timer['archiving_start'] = time()
     logger.info('Archiving results and cleaning up.') # Important to isolate processing and cleanup since the threads don't know when everything is done processing.
     with concurrent.futures.ProcessPoolExecutor(max_workers = num_threads) as executor:
         future_to_file = {executor.submit(cleanupFile, filename, segmentation_dir, config): filename for filename in avis}
@@ -331,8 +336,27 @@ def mainSegmentation(directory, config, logger):
                 logger.info(f"Cleaning up {n} of {len(avis)} files.\t\t Estimated remainder: {(end_time - init_time2)/n*(len(avis)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time2)/60:.1f} minutes.")
                 n += 1
 
+    timer['archiving_end'] = time()
     logger.info(f"Finished segmentation. Total time: {(time() - init_time)/60:.1f} minutes.")
-    sys.exit(0) # Successful close
+
+    sidecar = {
+        'directory' : directory,
+        'nFiles' : len(avis),
+        'script_version' : v_string,
+        'config' : config,
+        'system_info' : {
+            'System' : platform.system(),
+            'Node' : platform.node(),
+            'Release' : platform.release(),
+            'Version' : platform.version(),
+            'Machine' : platform.machine(),
+            'Processor' : platform.processor()
+        },
+        'timings' : timer
+    }
+
+    return sidecar
+    
 
 
 if __name__ == "__main__":
@@ -350,4 +374,5 @@ if __name__ == "__main__":
     logger = setup_logger('Segmentation (Main)', config)
 
     directory = sys.argv[1]
-    mainSegmentation(directory, config, logger)
+    sidecar = mainSegmentation(directory, config, logger)
+    sys.exit(0) # Successful close
