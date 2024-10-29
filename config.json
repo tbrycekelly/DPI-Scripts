@@ -5,7 +5,7 @@
         "log_path" : "../logs/"
     },
     "segmentation" : {
-        "diagnostic" : true,
+        "diagnostic" : false,
         "basename" : "REG",
         "analysis_dir" : "../analysis/",
         "min_perimeter" : 100,
@@ -18,7 +18,7 @@
         "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif"]
     },
     "classification" : {
-        "model_name" : "kappa121v20",
+        "model_name" : "lambda121v2",
         "model_dir" : "../model",
         "analysis_dir" : "../analysis/",
         "scnn_instances" : 1,
