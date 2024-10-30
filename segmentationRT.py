@@ -141,7 +141,7 @@ def process_frame(frame, config, logger):
                     im_padded.save(f"{path}{filename}-{n:06}-{i:06}.png")
                 
                 # Write stats to file:
-                stats = [n, i, x + w/2, y + h/2, w, h, major_axis_length, minor_axis_length, area]
+                stats = [n, i, x, y, w, h, major_axis_length, minor_axis_length, area]
                 outwritter.writerow(stats)
 
     # Save optional diagnsotic images before returning.
@@ -199,7 +199,7 @@ def process_avi(segmentation_dir, config, avi_path):
     # Wait for all tasks to complete
     init_time = time()
     logger.info(f'Starting processing. Found {len(frameList)} frames.')
-    with concurrent.futures.ProcessPoolExecutor(max_workers=int(config['segmentation']['num_threads'])) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers = int(config['segmentation']['num_threads'])) as executor:
          
         future_to_file = {executor.submit(process_frame, frame, config, logger): frame for frame in frameList}
                    

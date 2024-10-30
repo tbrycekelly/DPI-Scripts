@@ -143,7 +143,7 @@ def process_frame(frame, config, logger):
                     im_padded.save(f"{path}{filename}-{n:06}-{i:06}.png")
                 
                 # Write stats to file:
-                stats = [n, i, x + w/2, y + h/2, w, h, major_axis_length, minor_axis_length, area]
+                stats = [n, i, x, y, w, h, major_axis_length, minor_axis_length, area]
                 outwritter.writerow(stats)
 
     # Save optional diagnsotic images before returning.
@@ -274,7 +274,7 @@ def findVideos(raw_dir, config, logger):
     return(avis)
 
 
-def mainSegmentation(directory, config, logger):
+def mainSegmentation(config, logger):
     """
     The main access function for segmentation. Can be called from external scripts, but designed initially
      to be called from __main__.
@@ -283,13 +283,13 @@ def mainSegmentation(directory, config, logger):
     logger.info(f"Starting segmentation script {v_string}")
     timer = {'init' : time()}
 
-    if not os.path.exists(directory):
-        logger.error(f'Specified path ({directory}) does not exist. Stopping.')
+    if not os.path.exists(config['raw_dir']):
+        logger.error(f'Specified path ({config["raw_dir"]}) does not exist. Stopping.')
         sys.exit(1)
 
     ## Determine directories
-    raw_dir = os.path.abspath(directory) # /media/plankline/Data/raw/Camera0/test1
-    segmentation_dir = constructSegmentationDir(raw_dir, config)
+    raw_dir = config['raw_dir'] # /media/plankline/Data/raw/Camera0/test1
+    segmentation_dir = config['segmentation_dir']
 
     ## Find files to process:
     avis = findVideos(raw_dir, config, logger)
@@ -373,6 +373,19 @@ if __name__ == "__main__":
     v_string = "V2024.10.14"
     logger = setup_logger('Segmentation (Main)', config)
 
+    ## Setup directories
     directory = sys.argv[1]
-    sidecar = mainSegmentation(directory, config, logger)
+    config['raw_dir'] = os.path.abspath(directory)
+    config['segmentation_dir'] = constructSegmentationDir(config['raw_dir'], config)
+
+    ## Run segmentation
+    sidecar = mainSegmentation(config, logger)
+
+    ## Write sidecar file
+    json_save_pathname = config['segmentation_dir'] + '.json'
+    json_object = json.dumps(sidecar, indent=4)
+    with open(json_save_pathname, "w") as outfile:
+        outfile.write(json_object)
+        logger.debug("Sidecar writting finished.")
+
     sys.exit(0) # Successful close

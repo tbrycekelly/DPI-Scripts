@@ -64,15 +64,29 @@ def init_model(num_classes, img_height, img_width):
     return(model)
 
 
-def train_model(model, config, train_ds, val_ds):
-    csv_logger = tf.keras.callbacks.CSVLogger(config['training']['model_path'] + '/' + config['training']['model_name'] + '.log', append=False, separator=',')
-    # TODO Save model periodically.
-    history = model.fit(train_ds,
-                        validation_data=val_ds,
-                        epochs=int(config['training']['stop'])-int(config['training']['start']),
-                        initial_epoch=int(config['training']['start']),
-                        batch_size = int(config['training']['batchsize']),
-                        callbacks=[csv_logger])
+def train_model(model, config, train_ds, val_ds, devices):
+    csv_logger = tf.keras.callbacks.CSVLogger(
+        config['training']['model_path'] + '/' + config['training']['model_name'] + '.log',
+         append = False,
+          separator = ','
+    )
+    
+    checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+        filepath = config['training']['model_path'] + os.path.sep + config['training']['model_name'] + '_checkpoint.keras',
+        save_best_only = True,
+        monitor = 'val_loss',
+        mode = 'min',
+        save_weights_only = False,
+        period = 5
+    )
+
+    with tf.device(devices):
+        history = model.fit(train_ds,
+                            validation_data=val_ds,
+                            epochs=int(config['training']['stop'])-int(config['training']['start']),
+                            initial_epoch=int(config['training']['start']),
+                            batch_size = int(config['training']['batchsize']),
+                            callbacks=[csv_logger, checkpoint_callback])
     
     return(model, history)
 
@@ -90,6 +104,7 @@ def init_ts(config):
     
     return(train_ds, val_ds)
 
+
 def getTensorflowDevices(logger):
     devices = tf.config.list_physical_devices()
     gpus = tf.config.list_physical_devices('GPU')
@@ -104,6 +119,7 @@ def getTensorflowDevices(logger):
         for idx, cpu in enumerate(devices):
             logger.debug(f"Device {idx}: {cpu}")
     return devices
+
 
 def mainTrain(config, logger):
 
@@ -132,12 +148,14 @@ def mainTrain(config, logger):
     
     ## Train model
     timer['model_train_start'] = time()
-    model, history = train_model(model, config, train_ds, val_ds)
+    model, history = train_model(model, config, train_ds, val_ds, devices)
     timer['model_train_end'] = time()
     logger.info('Model trained. Running post-processing steps.')
 
+    ## Post training steps
     model_save_pathname = config['training']['model_path'] + os.path.sep + config['training']['model_name'] + '.keras'
     json_save_pathname = config['training']['model_path'] + os.path.sep + config['training']['model_name'] + '.json'
+    
     if os.path.exists(model_save_pathname):
         if config['training']['overwrite']:
             logger.info(f"Saved keras file exists for {config['training']['model_name']}. Overwrite is enabled so existing file is being removed.")
@@ -152,8 +170,6 @@ def mainTrain(config, logger):
             model_save_pathname = config['training']['model_path'] + os.path.sep + config['training']['model_name'] + '.keras'
             config['training']['model_path'] + os.path.sep + config['training']['model_name'] + '.json'
     
-
-    ## Post training steps
     logger.debug(f"Saving model keras file to {config['training']['model_path']}.")
     timer['model_save_start'] = time()
     model.save(model_save_pathname)
@@ -193,7 +209,7 @@ def mainTrain(config, logger):
         'timings' : timer
     }
     
-    logger.debug(f"Writing model sidecar to {config['training']['model_path']}.")
+    logger.debug(f"Writing model sidecar to {json_save_pathname}.")
     json_object = json.dumps(sidecar, indent=4)
     with open(json_save_pathname, "w") as outfile:
         outfile.write(json_object)

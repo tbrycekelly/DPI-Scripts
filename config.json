@@ -18,7 +18,7 @@
         "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif"]
     },
     "classification" : {
-        "model_name" : "lambda121v2",
+        "model_name" : "kappa121v20",
         "model_dir" : "../model",
         "analysis_dir" : "../analysis/",
         "scnn_instances" : 1,
@@ -26,7 +26,7 @@
         "image_size" : 128,
         "cpuonly" : false,
         "overwrite" : true,
-        "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif"]
+        "image_extensions" : [".png"]
     },
     "training" : {
         "scnn_dir" : "../training/training_set_20240829",

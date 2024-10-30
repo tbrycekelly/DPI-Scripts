@@ -69,7 +69,7 @@ def loadModel(config, logger):
     return model, sidecar
 
 
-def mainClassifcation(directory, config, logger):
+def mainClassifcation(config, logger):
     """
     Main function for classification.
     """
@@ -78,8 +78,8 @@ def mainClassifcation(directory, config, logger):
     logger.info(f"Starting Plankline Classification Script {v_string}")
     timer = {'init' : time()}
 
-    if not os.path.exists(directory):
-        logger.error(f'Specified path ({directory}) does not exist. Stopping.')
+    if not os.path.exists(config['segmentation_dir']):
+        logger.error(f'Specified path ({config["segmentation_dir"]}) does not exist. Stopping.')
         sys.exit(1)
 
     if config['classification']['cpuonly']:
@@ -101,21 +101,18 @@ def mainClassifcation(directory, config, logger):
 
     # ### Setup Folders and run classification on each segment output
     timer['folder_prepare_start'] = time()
-    segmentation_dir = os.path.abspath(directory)  # /media/plankline/Data/analysis/segmentation/Camera1/Transect1-reg
-    classification_dir = segmentation_dir.replace('segmentation', 'classification')  # /media/plankline/Data/analysis/segmentation/Camera1/Transect1-reg
-    classification_dir = classification_dir + '-' + config["classification"]["model_name"] # /media/plankline/Data/analysis/segmentation/Camera1/Transect1-reg-Plankton
-    
-    logger.debug(f"Segmentation directory is {segmentation_dir}.")
-    logger.debug(f"Classification directory is {classification_dir}.")
+
+    logger.debug(f"Segmentation directory is {config['segmentation_dir']}.")
+    logger.debug(f"Classification directory is {config['classification_dir']}.")
     
     try:
-        os.makedirs(classification_dir, int(config['general']['dir_permissions']), exist_ok = True)
+        os.makedirs(config['classification_dir'], int(config['general']['dir_permissions']), exist_ok = True)
     except PermissionError:
-        logger.error(f"Permission denied: Unable to create classification directory '{classification_dir}'.")
+        logger.error(f"Permission denied: Unable to create classification directory '{config['classification_dir']}'.")
     except OSError as e:
-        logger.error(f"Error creating directory '{classification_dir}': {e}")
+        logger.error(f"Error creating directory '{config['classification_dir']}': {e}")
     
-    root = [z for z in os.listdir(segmentation_dir) if z.endswith('.zip')]
+    root = [z for z in os.listdir(config['segmentation_dir']) if z.endswith('.zip')]
     
     logger.info(f"Found {len(root)} archives for potential processing.")
     for idx, r in enumerate(root):
@@ -127,65 +124,22 @@ def mainClassifcation(directory, config, logger):
     timer['processing_start'] = time()
     for r in root:
         start_time = time()
-        if not is_file_above_minimum_size(segmentation_dir + os.path.sep + r, 128, logger):
-            logger.warn(f"File {r} either does not exist or does not meet minimum size requirements (128 B). Skipping to next file.")
-            continue
-
-        ##Unpack zip file
-        r2 = r.replace(".zip", "")
-
-        classification_output_filepath = classification_dir + os.path.sep + r2 + '_' + 'prediction.csv'
-        if os.path.exists(classification_output_filepath):
-            if config['classification']['overwrite']:
-                logger.info(f"classification file exists for {r2} and overwrite is enabled. Overwritting prior classification file.")
-                delete_file(classification_output_filepath, logger)
-            else:
-                logger.info(f"classification file exists for {r2}, overwrite is contraindicated in the config file. Skipping.")
-
-        logger.debug(f"Unpacking archive at {segmentation_dir + os.path.sep + r} to destination {segmentation_dir + os.path.sep + r2}.")
-        shutil.unpack_archive(segmentation_dir + os.path.sep + r, segmentation_dir + os.path.sep + r2 + os.path.sep, 'zip')
-
-        ## Load and preprocess images
-        images = []
-        image_files = []
-        valid_extensions = tuple(config['classification']['image_extensions'])
-        logger.debug(f"Valid extensions: {', '.join(valid_extensions)}")
-
-        for img in os.listdir(segmentation_dir + os.path.sep + r2):
-            if img.endswith(valid_extensions): 
-                logger.debug(f"Loading image {img}.")
-                image_files.append(img)
-                img = tf.keras.preprocessing.image.load_img(segmentation_dir + os.path.sep + r2 + os.path.sep + img,
-                                                            target_size = (int(config['classification']['image_size']), int(config['classification']['image_size'])),
-                                                            color_mode = 'grayscale')
-                img = np.expand_dims(img, axis = 0)
-                images.append(img)
-            else :
-                logger.debug(f"Skipping file {img}.")
-        images = np.vstack(images)
-        
-        logger.debug("Finished loading images. Starting prediction.")
-        predictions = model.predict(images, verbose = 0)
-        prediction_labels = np.argmax(predictions, axis = -1)
-        prediction_labels = [sidecar['labels'][i] for i in prediction_labels]
-        df = pd.DataFrame(predictions, index = image_files)
-        
-        df.columns = sidecar['labels']
-        df.to_csv(classification_output_filepath, index = True, header = True, sep = ',')
-        
+        runClassifier(r, model, sidecar, config, logger)
         logger.debug('Cleaning up unpacked archive files.')
-        delete_file(segmentation_dir + os.path.sep + r2 + os.path.sep, logger)
+        delete_file(config['segmentation_dir'] + os.path.sep + r.replace(".zip", "") + os.path.sep, logger)
         end_time = time()
         logger.info(f"Processed {n} of {len(root)} files.\t\t Iteration: {end_time-start_time:.2f} seconds\t Estimated remainder: {(end_time - init_time)/n*(len(root)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time)/60:.1f} minutes.")
         n+=1
+        
     logger.info(f"Finished classification. Total time: {(end_time - init_time)/60:.1f} minutes.")
     timer['processing_end'] = time()
 
-    sidecar = {
+    classificationSidecar = {
         'directory' : directory,
         'nFiles' : len(root),
         'script_version' : v_string,
         'config' : config,
+        'labels' : sidecar['labels'],
         'system_info' : {
             'System' : platform.system(),
             'Node' : platform.node(),
@@ -197,7 +151,55 @@ def mainClassifcation(directory, config, logger):
         'timings' : timer
     }
 
-    return sidecar
+    return classificationSidecar
+
+
+def runClassifier(r, model, sidecar, config, logger):
+    if not is_file_above_minimum_size(config['segmentation_dir'] + os.path.sep + r, 128, logger):
+        logger.warn(f"File {r} either does not exist or does not meet minimum size requirements (128 B). Skipping to next file.")
+        return(1)
+
+    ##Unpack zip file
+    r2 = r.replace(".zip", "")
+
+    classification_output_filepath = config['classification_dir'] + os.path.sep + r2 + ' prediction.csv'
+    if os.path.exists(classification_output_filepath):
+        if config['classification']['overwrite']:
+            logger.info(f"classification file exists for {r2} and overwrite is enabled. Overwritting prior classification file.")
+            delete_file(classification_output_filepath, logger)
+        else:
+            logger.info(f"classification file exists for {r2}, overwrite is contraindicated in the config file. Skipping.")
+
+    logger.debug(f"Unpacking archive at {config['segmentation_dir'] + os.path.sep + r} to destination {config['segmentation_dir'] + os.path.sep + r2}.")
+    shutil.unpack_archive(config['segmentation_dir'] + os.path.sep + r, config['segmentation_dir'] + os.path.sep + r2 + os.path.sep, 'zip')
+
+    ## Load and preprocess images
+    images = []
+    image_files = []
+    valid_extensions = tuple(config['classification']['image_extensions'])
+    logger.debug(f"Valid extensions: {', '.join(valid_extensions)}")
+
+    for img in os.listdir(config['segmentation_dir'] + os.path.sep + r2):
+        if img.endswith(valid_extensions): 
+            logger.debug(f"Loading image {img}.")
+            image_files.append(img)
+            img = tf.keras.preprocessing.image.load_img(config['segmentation_dir'] + os.path.sep + r2 + os.path.sep + img,
+                        target_size = (int(config['classification']['image_size']), int(config['classification']['image_size'])),
+                        color_mode = 'grayscale')
+            img = np.expand_dims(img, axis = 0)
+            images.append(img)
+        else :
+            logger.debug(f"Skipping file {img}.")
+    images = np.vstack(images)
+        
+    logger.debug("Finished loading images. Starting prediction.")
+    predictions = model.predict(images, verbose = 0)
+
+    df = pd.DataFrame(predictions, index = image_files) 
+    df.columns = sidecar['labels']
+    df.to_csv(classification_output_filepath, index = True, header = True, sep = ',')
+
+    return(0)
 
 
 if __name__ == "__main__":
@@ -213,6 +215,20 @@ if __name__ == "__main__":
 
     logger = setup_logger('Classification (main)', config)
 
+    ## setup directories
     directory = sys.argv[1]
-    sidecar = mainClassifcation(directory, config, logger)
+    config['segmentation_dir'] = os.path.abspath(directory)
+    config['classification_dir'] = config['segmentation_dir'].replace('segmentation', 'classification')
+    config['classification_dir'] = config['classification_dir'] + '-' + config["classification"]["model_name"]
+
+    ## Run classification
+    sidecar = mainClassifcation(config, logger)
+
+    ## Write sidecar file
+    json_save_pathname = config['classification_dir'] + '.json'
+    json_object = json.dumps(sidecar, indent=4)
+    with open(json_save_pathname, "w") as outfile:
+        outfile.write(json_object)
+        logger.debug("Sidecar writting finished.")
+    
     sys.exit(0) # Successful close
