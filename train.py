@@ -80,13 +80,13 @@ def train_model(model, config, train_ds, val_ds, devices):
         save_freq = 5
     )
 
-    with tf.device(devices):
-        history = model.fit(train_ds,
-                            validation_data=val_ds,
-                            epochs=int(config['training']['stop'])-int(config['training']['start']),
-                            initial_epoch=int(config['training']['start']),
-                            batch_size = int(config['training']['batchsize']),
-                            callbacks=[csv_logger, checkpoint_callback])
+    #with tf.device(devices):
+    history = model.fit(train_ds,
+                        validation_data=val_ds,
+                        epochs=int(config['training']['stop'])-int(config['training']['start']),
+                        initial_epoch=int(config['training']['start']),
+                        batch_size = int(config['training']['batchsize']),
+                        callbacks=[csv_logger, checkpoint_callback])
     
     return(model, history)
 
