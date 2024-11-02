@@ -221,22 +221,22 @@ if __name__ == "__main__":
     logger = setup_logger('Training (main)', config)
 
     ## Deep Conv Net
-    #config["model_name"] = "convnet-1"
-    #onfig["model_type"] = "ConvNet Test"
-    #from ConvNet import *
-    #mainTrain(config, logger)
+    config["model_name"] = "convnet-1"
+    config["model_type"] = "ConvNet Test"
+    from ConvNet import *
+    mainTrain(config, logger)
 
     ## Residual Net
-    #config["model_name"] = "resnet-1"
-    #config["model_type"] = "ResNet Test"
-    #from ResNet import *
-    #mainTrain(config, logger)
+    config["model_name"] = "resnet-1"
+    config["model_type"] = "ResNet Test"
+    from ResNet import *
+    mainTrain(config, logger)
 
     ## DenseNet
-    #config["model_name"] = "densenet-1"
-    #config["model_type"] = "DenseNet Test"
-    #from DenseNet import *
-    #mainTrain(config, logger)
+    config["model_name"] = "densenet-1"
+    config["model_type"] = "DenseNet Test"
+    from DenseNet import *
+    mainTrain(config, logger)
 
     ## MobileNet
     config["model_name"] = "mobilenet-1"

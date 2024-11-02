@@ -36,7 +36,7 @@
         "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif"],
         "image_size": 128,
         "start" : 0,
-        "stop" : 5,
+        "stop" : 300,
         "validationSetRatio" : 0.25,
         "batchsize" : 64,
         "seed": 123,
