@@ -73,7 +73,7 @@ def train_model(model, config, train_ds, val_ds, devices):
         monitor = 'val_loss',
         mode = 'min',
         save_weights_only = False,
-        period = 5
+        save_freq = 5
     )
 
     with tf.device(devices):

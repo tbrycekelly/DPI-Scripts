@@ -77,7 +77,7 @@ def train_model(model, config, train_ds, val_ds, devices):
         monitor = 'val_loss',
         mode = 'min',
         save_weights_only = False,
-        period = 5
+        save_freq = 5
     )
 
     with tf.device(devices):
@@ -148,14 +148,14 @@ def mainTrain(config, logger):
     
     ## Train model
     timer['model_train_start'] = time()
-    model, history = train_model(model, config, train_ds, val_ds, devices)
+    model, history = train_model(model, config, train_ds, val_ds, deviceList)
     timer['model_train_end'] = time()
     logger.info('Model trained. Running post-processing steps.')
 
     ## Post training steps
     model_save_pathname = config['training']['model_path'] + os.path.sep + config['training']['model_name'] + '.keras'
     json_save_pathname = config['training']['model_path'] + os.path.sep + config['training']['model_name'] + '.json'
-    
+
     if os.path.exists(model_save_pathname):
         if config['training']['overwrite']:
             logger.info(f"Saved keras file exists for {config['training']['model_name']}. Overwrite is enabled so existing file is being removed.")
