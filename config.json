@@ -38,7 +38,7 @@
         "start" : 0,
         "stop" : 5,
         "validationSetRatio" : 0.25,
-        "batchsize" : 128,
+        "batchsize" : 64,
         "seed": 123,
         "overwrite" : true
     }

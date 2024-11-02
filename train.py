@@ -86,7 +86,7 @@ def train_model(model, config, train_ds, val_ds, devices):
                         epochs=int(config['training']['stop'])-int(config['training']['start']),
                         initial_epoch=int(config['training']['start']),
                         batch_size = int(config['training']['batchsize']),
-                        callbacks=[csv_logger, checkpoint_callback])
+                        callbacks=[csv_logger])
     
     return(model, history)
 
