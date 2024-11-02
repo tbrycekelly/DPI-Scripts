@@ -45,7 +45,7 @@ import json
 import platform
 import sys
 from logging.handlers import TimedRotatingFileHandler
-
+from functions import *
 
 def load_model(config, num_classes):
     if int(config['training']['start']) > 0:
@@ -219,8 +219,6 @@ if __name__ == "__main__":
         config = json.load(f)
 
     logger = setup_logger('Training (main)', config)
-
-    from functions import *
 
     ## Deep Conv Net
     config["model_name"] = "convnet-1"
