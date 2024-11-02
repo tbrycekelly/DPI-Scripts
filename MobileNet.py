@@ -12,7 +12,7 @@ def augmentation_block(x):
     return x
 
 def ConvDWBlock(x, filters, stride):
-    x = tf.keras.layers.DepthwiseConv2D(filters, (3, 3), strides = (stride, stride), padding = 'same', kernel_initializer = tf.keras.initializers.HeNormal())(x)
+    x = tf.keras.layers.DepthwiseConv2D(filters, (3, 3), strides = stride, padding = 'same', kernel_initializer = tf.keras.initializers.HeNormal())(x)
     x = tf.keras.layers.BatchNormalization()(x)
     x = tf.keras.layers.Activation('relu')(x)
     x = tf.keras.layers.Conv2D(filters, (1, 1), strides = (1, 1), padding='same', kernel_initializer = tf.keras.initializers.HeNormal())(x)
