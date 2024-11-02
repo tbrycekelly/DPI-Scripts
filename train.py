@@ -118,7 +118,7 @@ def getTensorflowDevices(logger):
         logger.warn(f"No (compatible) GPUs found, defaulting to CPU execution (n={len(devices)}).")
         for idx, cpu in enumerate(devices):
             logger.debug(f"Device {idx}: {cpu}")
-    return devices
+    return [x.name for x in devices]
 
 
 def mainTrain(config, logger):
