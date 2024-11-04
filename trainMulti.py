@@ -218,30 +218,32 @@ if __name__ == "__main__":
     with open('config.json', 'r') as f:
         config = json.load(f)
 
-    logger = setup_logger('Training (main)', config)
-
-    ## Deep Conv Net
-    config["model_name"] = "convnet-1"
-    config["model_type"] = "ConvNet Test"
-    from ConvNet import *
-    mainTrain(config, logger)
-
     ## Residual Net
+    logger = setup_logger('Training (resnet)', config)
     config["model_name"] = "resnet-1"
     config["model_type"] = "ResNet Test"
     from ResNet import *
     mainTrain(config, logger)
 
     ## DenseNet
+    logger = setup_logger('Training (densenet)', config)
     config["model_name"] = "densenet-1"
     config["model_type"] = "DenseNet Test"
     from DenseNet import *
     mainTrain(config, logger)
 
     ## MobileNet
+    logger = setup_logger('Training (mobilenet)', config)
     config["model_name"] = "mobilenet-1"
     config["model_type"] = "MobileNet Test"
     from MobileNet import *
+    mainTrain(config, logger)
+
+    ## Deep Conv Net
+    logger = setup_logger('Training (convnet)', config)
+    config["model_name"] = "convnet-1"
+    config["model_type"] = "ConvNet Test"
+    from ConvNet import *
     mainTrain(config, logger)
 
     sys.exit(0) # Successful close

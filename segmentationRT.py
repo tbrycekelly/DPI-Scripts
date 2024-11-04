@@ -183,7 +183,7 @@ def process_avi(segmentation_dir, config, avi_path):
         
     with open(statistics_filepath, 'a', newline='\n') as outcsv:
         outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
-        outwritter.writerow(['frame', 'crop', 'x', 'y', 'w', 'h', 'major_axis', 'minor_axis', 'area'])
+        outwritter.writerow(['frame', 'roi', 'x', 'y', 'w', 'h', 'major_axis', 'minor_axis', 'area'])
 
     frameList = []
     n = 1 # Frame count
