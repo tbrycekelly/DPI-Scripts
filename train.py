@@ -47,8 +47,8 @@ import sys
 from logging.handlers import TimedRotatingFileHandler
 
 from functions import *
-#from ConvNet import *
-from ResNet import *
+from ConvNet import *
+#from ResNet import *
 
 
 def load_model(config, num_classes):
