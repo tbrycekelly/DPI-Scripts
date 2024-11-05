@@ -30,8 +30,8 @@
     },
     "training" : {
         "scnn_dir" : "../training/training_set_20240724",
-        "model_name": "ConvNetE-1",
-        "model_type": "ConvNetE",
+        "model_name": "ConvNetA-1",
+        "model_type": "ConvNetA",
         "model_path": "../model/",
         "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif"],
         "image_size": 128,
