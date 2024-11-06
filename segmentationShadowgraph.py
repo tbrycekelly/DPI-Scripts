@@ -46,31 +46,7 @@ from logging.handlers import TimedRotatingFileHandler
 import concurrent.futures
 from functions import *
 import platform
-
-
-class Frame:
-    def __init__(self, fpath, name, frame, cal, n):
-        self.fpath = fpath  # default is 0 for primary camera
-        self.name = name
-        self.frame = frame
-        self.n = n
-        self.cal = cal
-
-    def read(self):
-        return self.frame
-
-    def get_n(self):
-        return self.n
-
-    def get_name(self):
-        return self.name
-
-    def update(self, newframe):
-        self.frame = newframe
-
-    def calibration(self):
-        return self.cal
-
+from functionsSegmentation import *
 
 
 def process_frame(frame, config, logger):
@@ -84,67 +60,63 @@ def process_frame(frame, config, logger):
     logger.debug(f"Pulled frame from queue. Processing {frame.get_name()} {frame.get_n()}.")
         
     image = np.array(cv2.imread(frame.read()))
-    # Check for compatible sizes:
-    if image.shape != frame.calibration().shape:
-        logger.debug(f"Image sizes for the frame and clibration images are not the same: {frame.get_name()} {frame.get_n()}.")
-    else:
-        ## First: Apply calibration image
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) # targets = white, bkg = black
+    ## First: Apply calibration image
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) # targets = white, bkg = black
 
-        image = image[776:2445,1155:3130]
-        bkg = image
-        image = cv2.medianBlur(image, 5)
-        bkg = cv2.medianBlur(bkg, 51)
-        bkg = cv2.GaussianBlur(bkg, (151, 151), 0)
-        gray = image / bkg * 255
-        gray = gray.clip(0,255).astype(np.uint8)
-        grayAnnotated = gray
+    image = image[776:2445,1155:3130]
+    bkg = image
+    image = cv2.medianBlur(image, 5)
+    bkg = cv2.medianBlur(bkg, 51)
+    bkg = cv2.GaussianBlur(bkg, (151, 151), 0)
+    gray = image / bkg * 255
+    gray = gray.clip(0,255).astype(np.uint8)
+    grayAnnotated = gray
 
-        #Third:  Apply Otsu's threshold
-        thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
-        cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+    #Third:  Apply Otsu's threshold
+    thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+    cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = cnts[0] if len(cnts) == 2 else cnts[1]
 
-        name = frame.get_name()
-        n = frame.get_n()
-        logger.debug(f"Thresholding frame {n}.")
-        stats = []
-        minIntensity = 220
+    name = frame.get_name()
+    n = frame.get_n()
+    logger.debug(f"Thresholding frame {n}.")
+    stats = []
+    minIntensity = 220
 
-        with open(f'{name[:-1]} statistics.csv', 'a', newline='\n') as outcsv:
-            outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
-            for i in range(len(cnts)):
-                x,y,w,h = cv2.boundingRect(cnts[i])
-                area = cv2.contourArea(cnts[i])
-                if 2*w + 2*h > int(config['segmentation']['min_perimeter_statsonly']):
-                    if len(cnts[i]) >= 5:  # Minimum number of points required to fit an ellipse
-                        ellipse = cv2.fitEllipse(cnts[i])
-                        center, axes, angle = ellipse
-                        major_axis_length = round(max(axes),1)
-                        minor_axis_length = round(min(axes),1)
-                    else :
-                        major_axis_length = -1
-                        minor_axis_length = -1
-                    mean_gray_value = np.mean(gray[y:(y+h), x:(x+w)])
-                    min_gray_value = np.mean(gray[y:(y+h), x:(x+w)])
+    with open(f'{name[:-1]} statistics.csv', 'a', newline='\n') as outcsv:
+        outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
+        for i in range(len(cnts)):
+            x,y,w,h = cv2.boundingRect(cnts[i])
+            area = cv2.contourArea(cnts[i])
+            if 2*w + 2*h > int(config['segmentation']['min_perimeter_statsonly']):
+                if len(cnts[i]) >= 5:  # Minimum number of points required to fit an ellipse
+                    ellipse = cv2.fitEllipse(cnts[i])
+                    center, axes, angle = ellipse
+                    major_axis_length = round(max(axes),1)
+                    minor_axis_length = round(min(axes),1)
+                else :
+                    major_axis_length = -1
+                    minor_axis_length = -1
+                mean_gray_value = np.mean(gray[y:(y+h), x:(x+w)])
+                min_gray_value = np.mean(gray[y:(y+h), x:(x+w)])
 
-                    if 2*w + 2*h >= int(config['segmentation']['min_perimeter']) and 2*w + 2*h <= int(config['segmentation']['max_perimeter']) and min_gray_value <= minIntensity:
-                        if config['segmentation']['diagnostic']:
-                            cv2.rectangle(grayAnnotated, (x, y), (x+w, y+h), (0,0,255), 1)
+                if 2*w + 2*h >= int(config['segmentation']['min_perimeter']) and 2*w + 2*h <= int(config['segmentation']['max_perimeter']) and min_gray_value <= minIntensity:
+                    if config['segmentation']['diagnostic']:
+                        cv2.rectangle(grayAnnotated, (x, y), (x+w, y+h), (0,0,255), 1)
 
-                        size = max(w, h)
-                        im = Image.fromarray(gray[y:(y+h), x:(x+w)])
-                        im_padded = Image.new(im.mode, (size, size), (255))
-                        if (w > h):
-                            left = 0
-                            top = (size - h)//2
-                        else:
-                            left = (size - w)//2
-                            top = 0
-                        im_padded.paste(im, (left, top))
-                        im_padded.save(f"{name}{n:06}-{i:06}.png")
-                    stats = [n, i, x + w/2, y + h/2, w, h, major_axis_length, minor_axis_length, area, min_gray_value, mean_gray_value]
-                    outwritter.writerow(stats)
+                    size = max(w, h)
+                    im = Image.fromarray(gray[y:(y+h), x:(x+w)])
+                    im_padded = Image.new(im.mode, (size, size), (255))
+                    if (w > h):
+                        left = 0
+                        top = (size - h)//2
+                    else:
+                        left = (size - w)//2
+                        top = 0
+                    im_padded.paste(im, (left, top))
+                    im_padded.save(f"{name}{n:06}-{i:06}.png")
+                stats = [n, i, x + w/2, y + h/2, w, h, major_axis_length, minor_axis_length, area, min_gray_value, mean_gray_value]
+                outwritter.writerow(stats)
 
         if config['segmentation']['diagnostic']:
             logger.debug(f"Diagnostic mode, saving threshold image and quantiledfiled image.")
@@ -163,7 +135,6 @@ def process_image_dir(img_path, segmentation_dir, config):
     1. Create output file structures/directories
     2. Load each frame, pass it through flatfielding and sequentially save segmented targets
     """
-
     logger = setup_logger('Segmentation Shadowgraph (Worker)', config)
 
     _, filename = os.path.split(img_path)
@@ -177,57 +148,17 @@ def process_image_dir(img_path, segmentation_dir, config):
         outwritter.writerow(['frame', 'roi', 'x', 'y', 'w', 'h', 'major_axis', 'minor_axis', 'area', 'min_grey_value', 'mean_grey_value'])
 
     logger.debug(f"Reading in calibration image {config['segmentation']['calibration_image']}.")
-    bkg = np.array(cv2.imread(config['segmentation']['calibration_image']))
-    
+
     for f in os.listdir(img_path):
       if f.endswith(('.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG')):
           logger.debug(f"Processing image {f}.")
-          process_frame(Frame(f, output_path, img_path + os.path.sep + f, bkg, f), config, logger)
+          process_frame(Frame(f, output_path, img_path + os.path.sep + f, f), config, logger)
       else:
         logger.debug(f"Skipped reading non-image file {f}.") 
 
 
-def cleanupFile(av, segmentation_dir, config):
-    """
-    cleanupFile: Standalone function to move a segmentated directory of ROIs into a compressed
-    zip archive. It then deletes the folder if not in diagnostic mode. This function allows for
-    multithreaded operation.
-    """
-    logger = setup_logger('Segmentation (Worker)', config)
-    _, filename = os.path.split(av)
-    output_path = segmentation_dir + os.path.sep + filename + os.path.sep
-    logger.debug(f"Compressing to archive {filename + '.zip.'}")
-    if is_file_above_minimum_size(segmentation_dir + os.path.sep + filename + '.zip', 0, logger):
-        if config['segmentation']['overwrite']:
-            logger.warn(f"archive exists for {filename} and overwritting is allowed. Deleting old archive.")
-            delete_file(segmentation_dir + os.path.sep + filename + '.zip', logger)
-        else:
-            logger.warn(f"archive exists for {filename} and overwritting is allowed. Skipping Archiving")
-
-    shutil.make_archive(segmentation_dir + os.path.sep + filename, 'zip', output_path)
-    if not config['segmentation']['diagnostic']:
-        logger.debug(f"Cleaning up output path: {output_path}.")
-        delete_file(output_path, logger)
-
-
-def findImgsets(raw_dir, config, logger):
-    """
-    Helper function to search for availabile video files in a directory.
-    """
-    imgsets = []
-    imgsets = [os.path.join(raw_dir, d) for d in os.listdir(raw_dir) if os.path.isdir(os.path.join(raw_dir, d))]
-    logger.info(f"Number of imgsets found: {len(imgsets)}")
-
-    for idx, av in enumerate(imgsets):
-        logger.debug(f"Found imgsets folder {idx}: {av}.")
-
-    return(imgsets)
-\
 
 def generate_median_image(directory, output_dir):
-    """
-    
-    """
     logger = logging.getLogger('Shadowgraph Segmentation (main)')
     # Get a list of all image file names in the directory
     image_files = [file for file in os.listdir(directory) if file.endswith(('.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG'))]
@@ -256,37 +187,9 @@ def generate_median_image(directory, output_dir):
 
     # Compute the median image
     median_image = np.median(all_images, axis=0).astype(np.uint8)
-    #if not os.path.exists(output_dir):
-    #    os.makedirs(output_dir, int(config['general']['dir_permissions']), exist_ok = True)
-    #    logger.debug(f"Created new output directory for median image: {output_dir}.")
     cv2.imwrite(output_dir, median_image)
     logger.info(f"New median (calibration) image saved as {output_dir}.")
 
-
-def constructSegmentationDir(rawPath, config):
-    """
-    Helper function to standardize the directory construction for the segmentation output given a configuration
-    and raw file path.
-    """
-    segmentationDir = rawPath.replace("raw", "analysis") # /media/plankline/Data/analysis/Camera1/Transect1
-    segmentationDir = segmentationDir.replace("camera0/", "camera0/segmentation/") # /media/plankline/Data/analysis/Camera1/Transect1
-    segmentationDir = segmentationDir.replace("camera1/", "camera1/segmentation/") # /media/plankline/Data/analysis/Camera1/segmentation/Transect1
-    segmentationDir = segmentationDir.replace("camera2/", "camera2/segmentation/") # /media/plankline/Data/analysis/Camera1/segmentation/Transect1
-    segmentationDir = segmentationDir.replace("camera3/", "camera3/segmentation/") # /media/plankline/Data/analysis/Camera1/segmentation/Transect1
-        
-    segmentationDir = segmentationDir + f"-{config['segmentation']['basename']}" # /media/plankline/Data/analysis/segmentation/Camera1/segmentation/Transect1-REG
-    logger.debug(f"Segmentation directory: {segmentationDir}")
-    try:
-        os.makedirs(segmentationDir, int(config['general']['dir_permissions']), exist_ok = True)
-    except PermissionError:
-        logger.error(f"Permission denied: Unable to create segmentation directory '{directory_path}'.")
-        sys.exit(1)
-    except OSError as e:
-        # Catch any other OS-related errors
-        logger.error(f"Error creating directory '{directory_path}': {e}")
-        sys.exit(1)
-
-    return(segmentationDir)
 
 
 def mainShadowgraphSegmentation(config, logger):
@@ -313,11 +216,6 @@ def mainShadowgraphSegmentation(config, logger):
     ## Prepare workers for receiving frames
     num_threads = min(os.cpu_count() - 2, len(imgsets))
     logger.info(f"Starting processing with {num_threads} processes...")
-    
-    ## TODO - Improve this - one median for each imgset.
-    if not os.path.exists(config['segmentation']['calibration_image']):
-                logger.info('Generating calibration image.')
-                generate_median_image(im, config['segmentation']['calibration_image'])
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=num_threads) as executor:
         future_to_file = {executor.submit(process_image_dir, folder, segmentation_dir, config): folder for folder in imgsets}
@@ -376,8 +274,7 @@ def mainShadowgraphSegmentation(config, logger):
     }
 
     return sidecar
-    
-    
+
 
 if __name__ == "__main__":
 
