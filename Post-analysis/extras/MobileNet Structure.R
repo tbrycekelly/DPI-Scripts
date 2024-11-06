@@ -57,16 +57,16 @@ plot(NULL, NULL, xlim = c(0,800), ylim = c(0,800), frame = F, xaxt = 'n', yaxt =
 start = c(130, 650)
 
 rect(start[1], start[2], start[1] + 40, start[2] + 40, col = '#777777', border = T)
-start = start + c(5, -10)
+start = start + c(6, -10)
 
 for (i in 1:13) {
   ## DW Block 1
   rect(start[1], start[2], start[1] + 40, start[2] + 40, col = '#77aa77', border = T)
-  start = start + c(5, -10) * 0.5
+  start = start + c(6, -10) * 0.5
   rect(start[1], start[2], start[1] + 40, start[2] + 40, col = '#777777', border = T)
   
   ## conv block 1
-  start = start + c(5, -10) * 1.6
+  start = start + c(6, -10) * 1.6
   rect(start[1], start[2], start[1] + 40, start[2] + 40, col = '#777777', border = T)
   start = start + c(9, -10) * 1.6
 }

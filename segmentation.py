@@ -244,6 +244,7 @@ def constructSegmentationDir(rawPath, config):
     segmentationDir = segmentationDir.replace("camera3/", "camera3/segmentation/") # /media/plankline/Data/analysis/Camera1/segmentation/Transect1
         
     segmentationDir = segmentationDir + f"-{config['segmentation']['basename']}" # /media/plankline/Data/analysis/segmentation/Camera1/segmentation/Transect1-REG
+    logger = setup_logger('Segmentation (Main)', config)
     logger.debug(f"Segmentation directory: {segmentationDir}")
     try:
         os.makedirs(segmentationDir, int(config['general']['dir_permissions']), exist_ok = True)
@@ -253,7 +254,6 @@ def constructSegmentationDir(rawPath, config):
     except OSError as e:
         # Catch any other OS-related errors
         logger.error(f"Error creating directory '{directory_path}': {e}")
-        sys.exit(1)
 
     return(segmentationDir)
 
@@ -370,7 +370,6 @@ if __name__ == "__main__":
     with open('config.json', 'r') as f:
         config = json.load(f)
 
-    v_string = "V2024.10.14"
     logger = setup_logger('Segmentation (Main)', config)
 
     ## Setup directories

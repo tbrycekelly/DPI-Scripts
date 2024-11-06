@@ -5,7 +5,7 @@
         "log_path" : "../logs/"
     },
     "segmentation" : {
-        "diagnostic" : false,
+        "diagnostic" : true,
         "basename" : "REG",
         "analysis_dir" : "../analysis/",
         "min_perimeter" : 100,
