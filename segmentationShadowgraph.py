@@ -65,10 +65,10 @@ def process_frame(frame, config, logger):
 
     image = image[776:2445,1155:3130]
     bkg = image
-    image = cv2.medianBlur(image, 5)
+    imageSmooth = cv2.medianBlur(image, 5)
     bkg = cv2.medianBlur(bkg, 51)
     bkg = cv2.GaussianBlur(bkg, (151, 151), 0)
-    gray = image / bkg * 255
+    gray = imageSmooth / bkg * 255
     gray = gray.clip(0,255).astype(np.uint8)
     grayAnnotated = gray
 
@@ -105,7 +105,7 @@ def process_frame(frame, config, logger):
                         cv2.rectangle(grayAnnotated, (x, y), (x+w, y+h), (0,0,255), 1)
 
                     size = max(w, h)
-                    im = Image.fromarray(gray[y:(y+h), x:(x+w)])
+                    im = Image.fromarray(image[y:(y+h), x:(x+w)])
                     im_padded = Image.new(im.mode, (size, size), (255))
                     if (w > h):
                         left = 0
@@ -152,7 +152,7 @@ def process_image_dir(img_path, segmentation_dir, config):
     for f in os.listdir(img_path):
       if f.endswith(('.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG')):
           logger.debug(f"Processing image {f}.")
-          process_frame(Frame(f, output_path, img_path + os.path.sep + f, f), config, logger)
+          process_frame(Frame(f, output_path, img_path + os.path.sep + f, 1, f), config, logger)
       else:
         logger.debug(f"Skipped reading non-image file {f}.") 
 

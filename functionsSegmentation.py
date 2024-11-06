@@ -1,3 +1,5 @@
+from functions import *
+
 class Frame:
     def __init__(self, fpath, name, frame, n, filename):
         self.fpath = fpath
