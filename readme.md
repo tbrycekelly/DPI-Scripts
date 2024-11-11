@@ -79,7 +79,7 @@ __Project-wide__
 - [x] General: implement standard logging throughout
 - [ ] Develop standard test: configuration
 - [ ] Develop standard test: files w/ folder structure
-- - [ ] Accessible data storage site (for test set, e.g.) 
+ - [ ] Accessible data storage site (for test set, e.g.) 
 - [x] Documentation: Write readme
 - [ ] Documentation: Provide project overview description and presentation
 - [ ] Documentation: Write install and setup guide
@@ -107,6 +107,8 @@ __Post-processing__
 - [ ] Postprocessing: Model training summary and visualization
 - [ ] Postprocessing: Rmarkdown for preliminary report
 
+
+---
 
 #### References
 
