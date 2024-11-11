@@ -1,12 +1,12 @@
-![DPI-Scripts Logo](./docs/images/DPI-Scripts%20Logo.png)
+![DPI-Scripts Logo](./docs/images/DPI-Scripts%20Logo.png | width=250)
 # DPI-Scripts
-These scripts were originally inspired by the _Plankline_ project controlled by OSU [original OSU version](https://zenodo.org/record/4641158)[[Luo et al., 2018]](#Luo)[[Schmid et al., 2021]](#Schmid). I have completely rewritten the codebase in modern Python/Tensorflow to suit our architecture and to improve logging and performance. __DPI-Scripts__ are available as is and without guarantee. These are intended for in-house use at UAF and at other research outlets. Scripts here have been written by Thomas Kelly, but will likely share some code with others (e.g., Github, Stackoverflow, etc)--but I have attempted to notate original author/inspiration where possible.
+These scripts were originally inspired by the _Plankline_ project controlled by OSU [original OSU version](https://zenodo.org/record/4641158) [(Luo et al., 2018; ](#Luo) [Schmid et al., 2021)](#Schmid). I have completely rewritten the codebase in modern Python/Tensorflow to suit our architecture and to improve logging and performance. __DPI-Scripts__ are available as is and without guarantee. These are intended for in-house use at UAF and at other research outlets. Scripts here have been written by Thomas Kelly, but will likely share some code with others (e.g., Github, Stackoverflow, etc)--but I have attempted to notate original author/inspiration where possible.
 
 These scripts aim to be the easiest and most efficient (comutationally) approach to classifying plankton images. They use the latest advancements in machine learning (e.g., DenseNet, ResNet) and active roject development (e.g. Tensorflow) to provide a reliable platform for scientsits and non-CS specialists. 
 
 ## Setup and Documentation
 
-The DPI-Scripts suite of processing scripts is split into three main modules: (1) segmentation, (2) classification, and (3) training; and is unified with the scripts in this repository. This pipeline uses OTSU Thresholding for segmentation and a DenseNet121 [[Huang et al., 2016]](#Huang) neural network for image classification. 
+The DPI-Scripts suite of processing scripts is split into three main modules: (1) segmentation, (2) classification, and (3) training; and is unified with the scripts in this repository. This pipeline uses OTSU Thresholding for segmentation and a DenseNet121 [(Huang et al., 2016)](#Huang) neural network for image classification. 
 
 If you are new to linux and setting up a DPI-Scripts instance for the first time, then please review the [DPI-Scripts Quick Start Guide](docs/DPI-Scripts-Setup.md); or if you are starting a bare-metal setup then please review the [Detailed Server Setup](docs/Server-Setup-Guide.md). 
 
