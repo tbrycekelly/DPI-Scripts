@@ -225,7 +225,7 @@ if __name__ == "__main__":
         config = json.load(f)
 
     ## Residual Net
-    if True:
+    if False:
         logger = setup_logger('Training (resnet)', config)
         config["model_name"] = "resnet18-1"
         config["model_type"] = "ResNet18"
@@ -238,6 +238,7 @@ if __name__ == "__main__":
         from ResNet34 import *
         mainTrain(config, logger)
 
+    if True:
         logger = setup_logger('Training (resnet)', config)
         config["model_name"] = "resnet50-1"
         config["model_type"] = "ResNet50"

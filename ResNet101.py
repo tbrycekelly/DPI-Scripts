@@ -76,9 +76,9 @@ def make_advanced_block_base(inputs, filter_num, stride=1):
     
 
     shortcut = inputs
-    if stride != 1:
-        shortcut = tf.keras.layers.Conv2D(filters=filter_num, kernel_size=(1, 1), strides=stride, kernel_initializer='he_normal')(inputs)
-        shortcut = tf.keras.layers.BatchNormalization()(shortcut)
+    #if stride != 1:
+    shortcut = tf.keras.layers.Conv2D(filters=filter_num*4, kernel_size=(1, 1), strides=stride, kernel_initializer='he_normal')(inputs)
+    shortcut = tf.keras.layers.BatchNormalization()(shortcut)
 
     x = tf.keras.layers.add([x, shortcut])
     x = tf.keras.layers.Activation('relu')(x)
