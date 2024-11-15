@@ -45,93 +45,49 @@ import concurrent.futures
 from functions import *
 import platform
 from functionsSegmentation import *
+import sqlite3
+import threading
+
+thread_local = threading.local()
 
 
-def process_frame(frame, config, logger):
-    """
-    Function for processing a single frame object:
-        Flatfielding
-        Thresholding
-        Contouring
-        Segmentation
-        Statistics
-        ROIs
-    """
-    logger.debug('Started worker thread.')
+def get_connection(db_name="data.db"):
+    if not hasattr(thread_local, "connection"):
+        thread_local.connection = sqlite3.connect(db_name, check_same_thread=False)
+        thread_local.connection.execute("PRAGMA journal_mode=WAL;")  # Enable Write-Ahead Logging for concurrency
+    return thread_local.connection
 
-    logger.debug(f"Pulled frame from queue. Processing {frame.get_name()}.")
-        
-    ## Read img and flatfield
-    gray = cv2.cvtColor(frame.read(), cv2.COLOR_BGR2GRAY)
-    gray = np.array(gray)
-    
-    field = np.quantile(gray, q = float(config['segmentation']['flatfield_q']), axis = 0)
-    gray = (gray / field.T * 255.0)
-    gray = gray.clip(0,255).astype(np.uint8)
 
-    # Apply Otsu's threshold
-    thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
-    cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    cnts = cnts[0] if len(cnts) == 2 else cnts[1]
-        
-    path = frame.get_name()
-    n = frame.get_n()
-    filename = frame.get_filename()
-    stats = []
-    grayAnnotated = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+def initialize_database():
+    conn = get_connection()
+    with conn:
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            n TEXT,
+            i INTEGER,
+            x INTEGER,
+            y INTEGER,
+            w INTEGER,
+            h INTEGER,
+            major_axis_length REAL,
+            minor_axis_length REAL,
+            area INTEGER,
+            image BLOB
+        )
+        """)
+    conn.close()
 
-    # Open statistics file and iterate through all identified ROIs.
-    with open(f'{path[:-1]} statistics.csv', 'a', newline='\n') as outcsv:
-        logger.debug(f"Writing to statistics.csv. Found {len(cnts)} ROIs.")
-        outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
-        for i in range(len(cnts)):
-            x,y,w,h = cv2.boundingRect(cnts[i])
-            area = cv2.contourArea(cnts[i])
+# [n, i, x, y, w, h, major_axis_length, minor_axis_length, area]
 
-            # If ROI is of useful minimum size.
-            if 2*w + 2*h >= int(config['segmentation']['min_perimeter_statsonly']):
-                if len(cnts[i]) >= 5:  # Minimum number of points required to fit an ellipse
-                    ellipse = cv2.fitEllipse(cnts[i])
-                    center, axes, angle = ellipse
-                    major_axis_length = round(max(axes),1)
-                    minor_axis_length = round(min(axes),1)
-                else :
-                    major_axis_length = -1
-                    minor_axis_length = -1
+def insert_data(value):
+    conn = get_connection()
+    with conn:
+        # Using transactions to ensure data integrity
+        conn.executemany("INSERT INTO data (n, i, x, y, w, h, major_axis_length, minor_axis_length, area, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", value)
+    #print(f"Data inserted: {value}")
 
-                # If ROI is within size limits for saving an image. 
-                if 2*w + 2*h >= int(config['segmentation']['min_perimeter']) and 2*w + 2*h <= int(config['segmentation']['max_perimeter']):
-                    
-                    if config['segmentation']['diagnostic']:
-                        cv2.rectangle(grayAnnotated, (x, y), (x+w, y+h), (0,0,255), 1)
 
-                    # Save crop as a square ROI. Need to determine size and padding.
-                    size = max(w, h)
-                    im = Image.fromarray(gray[y:(y+h), x:(x+w)])
-                    im_padded = Image.new(im.mode, (size, size), (255))
-                        
-                    if (w > h):
-                        left = 0
-                        top = (size - h)//2
-                    else:
-                        left = (size - w)//2
-                        top = 0
-                    im_padded.paste(im, (left, top))
-                    im_padded.save(f"{path}{filename}-{n:06}-{i:06}.png")
-                
-                # Write stats to file:
-                stats = [n, i, x, y, w, h, major_axis_length, minor_axis_length, area]
-                outwritter.writerow(stats)
-
-    # Save optional diagnsotic images before returning.
-    if config['segmentation']['diagnostic']:
-        logger.debug('Saving diagnostic images.')
-        cv2.imwrite(config['segmentation']['segmentation_dir_diagnostic'] + os.path.sep + f'{filename}-{n:06}-corrected.jpg', gray)
-        cv2.imwrite(config['segmentation']['segmentation_dir_diagnostic'] + os.path.sep + f'{path}{filename}-{n:06}-annotated.jpg', grayAnnotated)
-        cv2.imwrite(config['segmentation']['segmentation_dir_diagnostic'] + os.path.sep + f'{path}{filename}-{n:06}-threshold.jpg', thresh)
-
-    return True
-                
 
 
 def mainSegmentation(config, logger):
@@ -149,7 +105,7 @@ def mainSegmentation(config, logger):
 
     ## Determine directories
     raw_dir = config['raw_dir'] # /media/plankline/Data/raw/Camera0/test1
-    segmentation_dir = config['segmentation_dir']
+    segmentation_dir = config['segmentation']['segmentation_dir']
 
     ## Find files to process:
     avis = findVideos(raw_dir, config, logger)
@@ -158,6 +114,9 @@ def mainSegmentation(config, logger):
     ## Prepare workers for receiving frames
     num_threads = min(os.cpu_count() - 2, len(avis))
     logger.info(f"Starting processing with {num_threads} processes...")
+
+    initialize_database()
+    logger.info('Database initialized.')
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=num_threads) as executor:
         future_to_file = {executor.submit(process_avi, segmentation_dir, config, filename): filename for filename in avis}
@@ -235,13 +194,13 @@ if __name__ == "__main__":
     ## Setup directories
     directory = sys.argv[1]
     config['raw_dir'] = os.path.abspath(directory)
-    config['segmentation_dir'] = constructSegmentationDir(config['raw_dir'], config)
+    config = constructSegmentationDir(config)
 
     ## Run segmentation
     sidecar = mainSegmentation(config, logger)
 
     ## Write sidecar file
-    json_save_pathname = config['segmentation_dir'] + '.json'
+    json_save_pathname = config['segmentation']['segmentation_dir'] + '.json'
     json_object = json.dumps(sidecar, indent=4)
     with open(json_save_pathname, "w") as outfile:
         outfile.write(json_object)

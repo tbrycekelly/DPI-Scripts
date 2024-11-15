@@ -69,7 +69,9 @@ def process_frame(frame, config, logger):
     bkg = cv2.medianBlur(bkg, 51)
     bkg = cv2.GaussianBlur(bkg, (151, 151), 0)
     gray = imageSmooth / bkg * 255
+    image = image / bkg * 255
     gray = gray.clip(0,255).astype(np.uint8)
+    image = image.clip(0,255).astype(np.uint8)
     grayAnnotated = gray
 
     #Third:  Apply Otsu's threshold
@@ -82,6 +84,7 @@ def process_frame(frame, config, logger):
     logger.debug(f"Thresholding frame {n}.")
     stats = []
     minIntensity = 220
+    filename = frame.get_filename()
 
     with open(f'{name[:-1]} statistics.csv', 'a', newline='\n') as outcsv:
         outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
@@ -120,11 +123,11 @@ def process_frame(frame, config, logger):
 
         if config['segmentation']['diagnostic']:
             logger.debug(f"Diagnostic mode, saving threshold image and quantiledfiled image.")
-            cv2.imwrite(f'{name}{n:06}-corrected.jpg', gray)
-            cv2.imwrite(f'{name}{n:06}-annotated.jpg', grayAnnotated)
-            cv2.imwrite(f'{name}{n:06}-original.jpg', image)
-            cv2.imwrite(f'{name}{n:06}-background.jpg', bkg)
-            cv2.imwrite(f'{name}{n:06}-threshold.jpg', thresh)
+            cv2.imwrite(config['segmentation']['segmentation_dir_diagnostic'] + os.path.sep + f'{filename}{n:06}-corrected.jpg', gray)
+            cv2.imwrite(config['segmentation']['segmentation_dir_diagnostic'] + os.path.sep + f'{filename}{n:06}-annotated.jpg', grayAnnotated)
+            cv2.imwrite(config['segmentation']['segmentation_dir_diagnostic'] + os.path.sep + f'{filename}{n:06}-original.jpg', image)
+            cv2.imwrite(config['segmentation']['segmentation_dir_diagnostic'] + os.path.sep + f'{filename}{n:06}-background.jpg', bkg)
+            cv2.imwrite(config['segmentation']['segmentation_dir_diagnostic'] + os.path.sep + f'{filename}{n:06}-threshold.jpg', thresh)
         logger.debug(f"Done with frame {n}.")
                 
 
@@ -208,7 +211,7 @@ def mainShadowgraphSegmentation(config, logger):
     ## Determine directories
     raw_dir = config['raw_dir'] # /media/plankline/Data/raw/Camera0/test1
     segmentation_dir = config['segmentation_dir']
-
+    
     ## Find files to process:
     imgsets = findImgsets(raw_dir, config, logger)
     
@@ -289,7 +292,7 @@ if __name__ == "__main__":
 
     directory = sys.argv[1]
     config['raw_dir'] = os.path.abspath(directory)
-    config['segmentation_dir'] = constructSegmentationDir(config['raw_dir'], config)
+    config = constructSegmentationDir(config)
 
     ## Run segmentation
     sidecar = mainShadowgraphSegmentation(config, logger)
