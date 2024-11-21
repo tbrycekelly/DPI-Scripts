@@ -47,90 +47,7 @@ from dpi_fun import *
 from dpi_fun.functions import *
 from dpi_fun.functionsSegmentation import *
 
-def mainSegmentation(config, logger):
-    """
-    The main access function for segmentation. Can be called from external scripts, but designed initially
-     to be called from __main__.
-    """
-    v_string = "V2024.10.14"
-    logger.info(f"Starting segmentation script {v_string}")
-    timer = {'init' : time()}
-
-    if not os.path.exists(config['raw_dir']):
-        logger.error(f'Specified path ({config["raw_dir"]}) does not exist. Stopping.')
-        sys.exit(1)
-
-    ## Determine directories
-    raw_dir = config['raw_dir'] # /media/plankline/Data/raw/Camera0/test1
-    segmentation_dir = config['segmentation_dir']
-
-    ## Find files to process:
-    avis = findVideos(raw_dir, config, logger)
-    
-    timer['processing_start'] = time()
-    ## Prepare workers for receiving frames
-    num_threads = min(os.cpu_count() - 2, len(avis))
-    logger.info(f"Starting processing with {num_threads} processes...")
-
-    with concurrent.futures.ProcessPoolExecutor(max_workers=num_threads) as executor:
-        future_to_file = {executor.submit(process_avi, segmentation_dir, config, filename): filename for filename in avis}
-    
-        # Wait for all tasks to complete
-        init_time = time()
-        n = 1
-        for future in concurrent.futures.as_completed(future_to_file):
-            filename = future_to_file[future]
-            try:
-                future.result()  # Get the result of the computation
-            except Exception as exc:
-                logger.error(f'Processing {filename} generated an exception: {exc}')
-            else:
-                end_time = time()
-                logger.info(f"Processed {n} of {len(avis)} files.\t\t Estimated remainder: {(end_time - init_time)/n*(len(avis)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time)/60:.1f} minutes.")
-                n += 1
-    timer['processing_end'] = time()
-
-    timer['archiving_start'] = time()
-    logger.info('Archiving results and cleaning up.') # Important to isolate processing and cleanup since the threads don't know when everything is done processing.
-    with concurrent.futures.ProcessPoolExecutor(max_workers = num_threads) as executor:
-        future_to_file = {executor.submit(cleanupFile, filename, segmentation_dir, config): filename for filename in avis}
-    
-        # Wait for all tasks to complete
-        init_time2 = time()
-        n = 1
-        for future in concurrent.futures.as_completed(future_to_file):
-            filename = future_to_file[future]
-            try:
-                future.result()  # Get the result of the computation
-            except Exception as exc:
-                logger.error(f'Processing {filename} generated an exception: {exc}')
-            else:
-                end_time = time()
-                logger.info(f"Cleaning up {n} of {len(avis)} files.\t\t Estimated remainder: {(end_time - init_time2)/n*(len(avis)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time2)/60:.1f} minutes.")
-                n += 1
-
-    timer['archiving_end'] = time()
-    logger.info(f"Finished segmentation. Total time: {(time() - init_time)/60:.1f} minutes.")
-
-    sidecar = {
-        'directory' : directory,
-        'nFiles' : len(avis),
-        'script_version' : v_string,
-        'config' : config,
-        'system_info' : {
-            'System' : platform.system(),
-            'Node' : platform.node(),
-            'Release' : platform.release(),
-            'Version' : platform.version(),
-            'Machine' : platform.machine(),
-            'Processor' : platform.processor()
-        },
-        'timings' : timer
-    }
-
-    return sidecar
-    
-
+thread_local = threading.local()
 
 if __name__ == "__main__":
     """
@@ -149,6 +66,11 @@ if __name__ == "__main__":
     directory = sys.argv[-1]
     config['raw_dir'] = os.path.abspath(directory)
     config['segmentation_dir'] = constructSegmentationDir(config['raw_dir'], config)
+    if 'sqlite' in config['general']['export_as']:
+        # SQLite Init
+        config['db_path'] = config['segmentation_dir'] + os.path.sep + 'segmentation.db'
+        initialize_database(config)
+        logger.info('Database initialized.')
 
     ## Run segmentation
     sidecar = mainSegmentation(config, logger)

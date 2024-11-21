@@ -10,6 +10,10 @@ import csv
 from PIL import Image
 import json
 import cv2
+import sqlite3
+import threading
 
 from .functions import *
 from .functionsSegmentation import *
+
+thread_local = threading.local()

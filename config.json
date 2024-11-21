@@ -2,7 +2,8 @@
     "general" : {
         "dir_permissions" : 511,
         "config_name" : "v1.1",
-        "log_path" : "../logs/"
+        "log_path" : "../logs/",
+        "export_as" : ["sqlite", "csv"]
     },
     "segmentation" : {
         "diagnostic" : true,
