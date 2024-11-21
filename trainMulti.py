@@ -54,7 +54,7 @@ def load_model(config, num_classes):
     return(init_model(num_classes, int(config['training']['image_size']), int(config['training']['image_size'])))
 
 
-def init_model(num_classes, img_height, img_width):
+def init_model(num_classes, img_height = 128, img_width = 128):
     model = Model([img_height, img_width, 1], num_classes)
     model.compile(optimizer='adam', loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False), metrics=['accuracy'])
     model.summary()
@@ -73,14 +73,14 @@ def train_model(model, config, train_ds, val_ds, devices):
           separator = ','
     )
     
-    checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-        filepath = config['training']['model_path'] + os.path.sep + config['training']['model_name'] + '_checkpoint.keras',
-        save_best_only = True,
-        monitor = 'val_loss',
-        mode = 'min',
-        save_weights_only = False,
-        save_freq = 5
-    )
+    #checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+    #    filepath = config['training']['model_path'] + os.path.sep + config['training']['model_name'] + '_checkpoint.keras',
+    #    save_best_only = True,
+    #    monitor = 'val_loss',
+    #    mode = 'min',
+    #    save_weights_only = False,
+    #    save_freq = 5
+    #)
 
     #with tf.device(devices):
     history = model.fit(train_ds,
@@ -96,7 +96,7 @@ def train_model(model, config, train_ds, val_ds, devices):
 def init_ts(config):
     train_ds, val_ds = tf.keras.utils.image_dataset_from_directory(
         config['training']['scnn_dir'],
-        interpolation='area',
+        interpolation = 'area',
         validation_split = config['training']['validationSetRatio'],
         subset = "both",
         seed = int(config['training']['seed']),

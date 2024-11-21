@@ -199,8 +199,6 @@ def runClassifier(r, model, sidecar, config, logger):
     df.columns = sidecar['labels']
     df.to_csv(classification_output_filepath, index = True, header = True, sep = ',')
 
-    return(0)
-
 
 if __name__ == "__main__":
     """

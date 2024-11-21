@@ -47,7 +47,7 @@ import platform
 from functionsSegmentation import *
 
 
-def process_frame(frame, config, logger):
+def process_linescan_frame(frame, config, logger):
     """
     Function for processing a single frame object:
         Flatfielding
@@ -57,8 +57,6 @@ def process_frame(frame, config, logger):
         Statistics
         ROIs
     """
-    logger.debug('Started worker thread.')
-
     logger.debug(f"Pulled frame from queue. Processing {frame.get_name()}.")
         
     ## Read img and flatfield
@@ -68,70 +66,43 @@ def process_frame(frame, config, logger):
     field = np.quantile(gray, q = float(config['segmentation']['flatfield_q']), axis = 0)
     gray = (gray / field.T * 255.0)
     gray = gray.clip(0,255).astype(np.uint8)
+    grayAnnotated = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
     # Apply Otsu's threshold
-    thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+    thresh = calcThreshold(gray)
     cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = cnts[0] if len(cnts) == 2 else cnts[1]
         
-    path = frame.get_name()
-    n = frame.get_n()
+    destPath = frame.get_dest_path() # filepath to the movie or imageset
     filename = frame.get_filename()
+    frameNumber = frame.get_frame_number()
+    
     stats = []
-    grayAnnotated = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
-
+    
     # Open statistics file and iterate through all identified ROIs.
-    with open(f'{path[:-1]} statistics.csv', 'a', newline='\n') as outcsv:
+    with open(f'{destPath[:-1]} statistics.csv', 'a', newline='\n') as outcsv:
         logger.debug(f"Writing to statistics.csv. Found {len(cnts)} ROIs.")
         outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
         for i in range(len(cnts)):
             x,y,w,h = cv2.boundingRect(cnts[i])
-            area = cv2.contourArea(cnts[i])
 
             # If ROI is of useful minimum size.
             if 2*w + 2*h >= int(config['segmentation']['min_perimeter_statsonly']):
-                if len(cnts[i]) >= 5:  # Minimum number of points required to fit an ellipse
-                    ellipse = cv2.fitEllipse(cnts[i])
-                    center, axes, angle = ellipse
-                    major_axis_length = round(max(axes),1)
-                    minor_axis_length = round(min(axes),1)
-                else :
-                    major_axis_length = -1
-                    minor_axis_length = -1
-
-                # If ROI is within size limits for saving an image. 
-                if 2*w + 2*h >= int(config['segmentation']['min_perimeter']) and 2*w + 2*h <= int(config['segmentation']['max_perimeter']):
-                    
-                    if config['segmentation']['diagnostic']:
-                        cv2.rectangle(grayAnnotated, (x, y), (x+w, y+h), (0,0,255), 1)
-
-                    # Save crop as a square ROI. Need to determine size and padding.
-                    size = max(w, h)
-                    im = Image.fromarray(gray[y:(y+h), x:(x+w)])
-                    im_padded = Image.new(im.mode, (size, size), (255))
-                        
-                    if (w > h):
-                        left = 0
-                        top = (size - h)//2
-                    else:
-                        left = (size - w)//2
-                        top = 0
-                    im_padded.paste(im, (left, top))
-                    im_padded.save(f"{path}{filename}-{n:06}-{i:06}.png")
-                
-                # Write stats to file:
-                stats = [n, i, x, y, w, h, major_axis_length, minor_axis_length, area]
+                stats = [frameNumber, i, *calcStats(cnts[i], x, y, w, h)]
                 outwritter.writerow(stats)
+
+            # If ROI is within size limits for saving an image. 
+            if 2*w + 2*h >= int(config['segmentation']['min_perimeter']) and 2*w + 2*h <= int(config['segmentation']['max_perimeter']):
+                saveROI(f"{destPath}{filename}-{frameNumber:06}-{i:06}.png", gray[y:(y+h), x:(x+w)], w, h) 
+                if config['segmentation']['diagnostic']:
+                    cv2.rectangle(grayAnnotated, (x, y), (x+w, y+h), (0,0,255), 1)
 
     # Save optional diagnsotic images before returning.
     if config['segmentation']['diagnostic']:
         logger.debug('Saving diagnostic images.')
-        cv2.imwrite(f'{path}{filename}-{n:06}-qualtilefield.jpg', gray)
-        cv2.imwrite(f'{path}{filename}-{n:06}-annotated.jpg', grayAnnotated)
-        cv2.imwrite(f'{path}{filename}-{n:06}-threshold.jpg', thresh)
-
-    return True
-                
+        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{filename}-{frameNumber:06}-qualtilefield.jpg', gray)
+        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{filename}-{frameNumber:06}-annotated.jpg', grayAnnotated)
+        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{filename}-{frameNumber:06}-threshold.jpg', thresh)
 
 
 def mainSegmentation(config, logger):
