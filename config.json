@@ -26,7 +26,8 @@
         "image_size" : 128,
         "cpuonly" : false,
         "overwrite" : true,
-        "image_extensions" : [".png"]
+        "image_extensions" : [".png"],
+        "feature_space" : false
     },
     "training" : {
         "scnn_dir" : "../training/training_set_20240724",

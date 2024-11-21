@@ -59,6 +59,12 @@ def loadModel(config, logger):
     logger.info(f"Loading model from {model_path}.")
     logger.info(f"Loading model sidecar from {label_path}.")
     model = tf.keras.models.load_model(model_path)
+
+    if config['classification']['feature_space']:
+        ## Modify model for feature extraction:
+        # Remove final softmax activation to expose penultimate dense layer. Generate as new model object.
+        x = model.layers[-2].output 
+        model = tf.keras.models.Model(inputs = model.input, outputs = x)
     
     with open(label_path, 'r') as file:
         sidecar = json.load(file)
@@ -214,7 +220,7 @@ if __name__ == "__main__":
     logger = setup_logger('Classification (main)', config)
 
     ## setup directories
-    directory = sys.argv[1]
+    directory = sys.argv[-1]
     config['segmentation_dir'] = os.path.abspath(directory)
     config['classification_dir'] = config['segmentation_dir'].replace('segmentation', 'classification')
     config['classification_dir'] = config['classification_dir'] + '-' + config["classification"]["model_name"]

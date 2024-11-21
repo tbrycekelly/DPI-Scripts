@@ -42,68 +42,10 @@ import json
 from logging.handlers import TimedRotatingFileHandler
 import cv2
 import concurrent.futures
-from functions import *
 import platform
-from functionsSegmentation import *
-
-
-def process_linescan_frame(frame, config, logger):
-    """
-    Function for processing a single frame object:
-        Flatfielding
-        Thresholding
-        Contouring
-        Segmentation
-        Statistics
-        ROIs
-    """
-    logger.debug(f"Pulled frame from queue. Processing {frame.get_name()}.")
-        
-    ## Read img and flatfield
-    gray = cv2.cvtColor(frame.read(), cv2.COLOR_BGR2GRAY)
-    gray = np.array(gray)
-    
-    field = np.quantile(gray, q = float(config['segmentation']['flatfield_q']), axis = 0)
-    gray = (gray / field.T * 255.0)
-    gray = gray.clip(0,255).astype(np.uint8)
-    grayAnnotated = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
-
-    # Apply Otsu's threshold
-    thresh = calcThreshold(gray)
-    cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    cnts = cnts[0] if len(cnts) == 2 else cnts[1]
-        
-    destPath = frame.get_dest_path() # filepath to the movie or imageset
-    filename = frame.get_filename()
-    frameNumber = frame.get_frame_number()
-    
-    stats = []
-    
-    # Open statistics file and iterate through all identified ROIs.
-    with open(f'{destPath[:-1]} statistics.csv', 'a', newline='\n') as outcsv:
-        logger.debug(f"Writing to statistics.csv. Found {len(cnts)} ROIs.")
-        outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
-        for i in range(len(cnts)):
-            x,y,w,h = cv2.boundingRect(cnts[i])
-
-            # If ROI is of useful minimum size.
-            if 2*w + 2*h >= int(config['segmentation']['min_perimeter_statsonly']):
-                stats = [frameNumber, i, *calcStats(cnts[i], x, y, w, h)]
-                outwritter.writerow(stats)
-
-            # If ROI is within size limits for saving an image. 
-            if 2*w + 2*h >= int(config['segmentation']['min_perimeter']) and 2*w + 2*h <= int(config['segmentation']['max_perimeter']):
-                saveROI(f"{destPath}{filename}-{frameNumber:06}-{i:06}.png", gray[y:(y+h), x:(x+w)], w, h) 
-                if config['segmentation']['diagnostic']:
-                    cv2.rectangle(grayAnnotated, (x, y), (x+w, y+h), (0,0,255), 1)
-
-    # Save optional diagnsotic images before returning.
-    if config['segmentation']['diagnostic']:
-        logger.debug('Saving diagnostic images.')
-        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{filename}-{frameNumber:06}-qualtilefield.jpg', gray)
-        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{filename}-{frameNumber:06}-annotated.jpg', grayAnnotated)
-        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{filename}-{frameNumber:06}-threshold.jpg', thresh)
-
+from dpi_fun import *
+from dpi_fun.functions import *
+from dpi_fun.functionsSegmentation import *
 
 def mainSegmentation(config, logger):
     """
@@ -204,7 +146,7 @@ if __name__ == "__main__":
     logger = setup_logger('Segmentation (Main)', config)
 
     ## Setup directories
-    directory = sys.argv[1]
+    directory = sys.argv[-1]
     config['raw_dir'] = os.path.abspath(directory)
     config['segmentation_dir'] = constructSegmentationDir(config['raw_dir'], config)
 

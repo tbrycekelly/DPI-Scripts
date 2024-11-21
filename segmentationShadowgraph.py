@@ -146,7 +146,7 @@ if __name__ == "__main__":
 
     logger = setup_logger('Shadowgraph Segmentation (main)', config)
 
-    directory = sys.argv[1]
+    directory = sys.argv[-1]
     config['raw_dir'] = os.path.abspath(directory)
     config['segmentation_dir'] = constructSegmentationDir(config['raw_dir'], config)
 
