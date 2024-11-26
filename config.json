@@ -3,15 +3,16 @@
         "dir_permissions" : 511,
         "config_name" : "v1.1",
         "log_path" : "../logs/",
-        "export_as" : ["sqlite", "csv"]
+        "export_as" : ["sqlite", "csv"],
+        "database_path" : "../database/"
     },
     "segmentation" : {
         "diagnostic" : true,
         "basename" : "REG",
         "analysis_dir" : "../analysis/",
-        "min_perimeter_statsonly" : 16,
-        "min_perimeter" : 80,
-        "max_perimeter" : 40000,
+        "min_perimeter_statsonly" : 40,
+        "min_perimeter" : 100,
+        "max_perimeter" : 6000,
         "flatfield_q" : 0.1,
         "calibration_image" : "../raw/camera0/shadowgraph/median_image.jpg",
         "overwrite" : true,

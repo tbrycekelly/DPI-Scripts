@@ -12,6 +12,9 @@ import json
 import cv2
 import sqlite3
 import threading
+import concurrent.futures
+import platform
+from .functions import *
 
 thread_local = threading.local()
 
@@ -54,6 +57,12 @@ def mainSegmentation(config, logger):
     if not os.path.exists(config['raw_dir']):
         logger.error(f'Specified path ({config["raw_dir"]}) does not exist. Stopping.')
         sys.exit(1)
+    
+    if 'sqlite' in config['general']['export_as']:
+        # SQLite Init
+        config['db_path'] = config['general']['database_path'] + os.path.sep + 'database.db'
+        initialize_database(config)
+        logger.info('Database initialized.')
 
     ## Determine directories
     raw_dir = config['raw_dir'] # /media/plankline/Data/raw/Camera0/test1
@@ -61,32 +70,52 @@ def mainSegmentation(config, logger):
 
     ## Find files to process:
     avis = findVideos(raw_dir, config, logger)
+    imgsets = findImgsets(raw_dir, config, logger)
     
     timer['processing_start'] = time()
     ## Prepare workers for receiving frames
-    num_threads = min(os.cpu_count() - 2, len(avis))
+    num_threads = min(os.cpu_count() - 2, len(avis) + len(imgsets))
     logger.info(f"Starting processing with {num_threads} processes...")
 
-    with concurrent.futures.ProcessPoolExecutor(max_workers=num_threads) as executor:
-        future_to_file = {executor.submit(process_video, segmentation_dir, config, filename): filename for filename in avis}
+    if len(avis) > 0:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=num_threads) as executor:
+            future_to_file = {executor.submit(process_video, segmentation_dir, config, filename): filename for filename in avis}
+        
+            # Wait for all tasks to complete
+            init_time = time()
+            n = 1
+            for future in concurrent.futures.as_completed(future_to_file):
+                filename = future_to_file[future]
+                try:
+                    future.result()  # Get the result of the computation
+                except Exception as exc:
+                    logger.error(f'Processing {filename} generated an exception: {exc}')
+                else:
+                    end_time = time()
+                    logger.info(f"Processed {n} of {len(avis)} files.\t\t Estimated remainder: {(end_time - init_time)/n*(len(avis)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time)/60:.1f} minutes.")
+                    n += 1
     
-        # Wait for all tasks to complete
-        init_time = time()
-        n = 1
-        for future in concurrent.futures.as_completed(future_to_file):
-            filename = future_to_file[future]
-            try:
-                future.result()  # Get the result of the computation
-            except Exception as exc:
-                logger.error(f'Processing {filename} generated an exception: {exc}')
-            else:
-                end_time = time()
-                logger.info(f"Processed {n} of {len(avis)} files.\t\t Estimated remainder: {(end_time - init_time)/n*(len(avis)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time)/60:.1f} minutes.")
-                n += 1
+    if len(imgsets) > 0:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=num_threads) as executor:
+            future_to_file = {executor.submit(process_image_dir, folder, segmentation_dir, config): folder for folder in imgsets}
+        
+            # Wait for all tasks to complete
+            init_time = time()
+            n = 1
+            for future in concurrent.futures.as_completed(future_to_file):
+                filename = future_to_file[future]
+                try:
+                    future.result()  # Get the result of the computation
+                except Exception as exc:
+                    logger.error(f'Processing {filename} generated an exception: {exc}')
+                else:
+                    end_time = time()
+                    logger.info(f"Processed {n} of {len(imgsets)} files.\t\t Estimated remainder: {(end_time - init_time)/n*(len(imgsets)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time)/60:.1f} minutes.")
+                    n += 1
     timer['processing_end'] = time()
 
     timer['archiving_start'] = time()
-    if 'csv' in config['general']['export_as']:
+    if 'csv' in config['general']['export_as'] and len(avis) > 0:
         logger.info('Archiving results and cleaning up.') # Important to isolate processing and cleanup since the threads don't know when everything is done processing.
         with concurrent.futures.ProcessPoolExecutor(max_workers = num_threads) as executor:
             future_to_file = {executor.submit(cleanupFile, filename, segmentation_dir, config): filename for filename in avis}
@@ -105,76 +134,7 @@ def mainSegmentation(config, logger):
                     logger.info(f"Cleaning up {n} of {len(avis)} files.\t\t Estimated remainder: {(end_time - init_time2)/n*(len(avis)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time2)/60:.1f} minutes.")
                     n += 1
 
-    timer['archiving_end'] = time()
-    logger.info(f"Finished segmentation. Total time: {(time() - init_time)/60:.1f} minutes.")
-
-    sidecar = {
-        'directory' : directory,
-        'nFiles' : len(avis),
-        'script_version' : v_string,
-        'config' : config,
-        'system_info' : {
-            'System' : platform.system(),
-            'Node' : platform.node(),
-            'Release' : platform.release(),
-            'Version' : platform.version(),
-            'Machine' : platform.machine(),
-            'Processor' : platform.processor()
-        },
-        'timings' : timer
-    }
-
-    return sidecar
-
-
-
-def mainShadowgraphSegmentation(config, logger):
-    """
-    The main access function for segmentation. Can be called from external scripts, but designed initially
-     to be called from __main__.
-    """
-    v_string = "V2024.10.14"
-    logger.info(f"Starting segmentation script {v_string}")
-    timer = {'init' : time()}
-
-    ##TODO  Test that config is valid: raw_dir, segmentation_dir...?
-
-    if not os.path.exists(config['raw_dir']):
-        logger.error(f'Specified path ({config["raw_dir"]}) does not exist. Stopping.')
-        sys.exit(1)
-
-    ## Determine directories
-    raw_dir = config['raw_dir'] # /media/plankline/Data/raw/Camera0/test1
-    segmentation_dir = config['segmentation_dir']
-
-    ## Find files to process:
-    imgsets = findImgsets(raw_dir, config, logger)
-    
-    timer['processing_start'] = time()
-    ## Prepare workers for receiving frames
-    num_threads = min(os.cpu_count() - 2, len(imgsets))
-    logger.info(f"Starting processing with {num_threads} processes...")
-
-    with concurrent.futures.ProcessPoolExecutor(max_workers=num_threads) as executor:
-        future_to_file = {executor.submit(process_image_dir, folder, segmentation_dir, config): folder for folder in imgsets}
-    
-        # Wait for all tasks to complete
-        init_time = time()
-        n = 1
-        for future in concurrent.futures.as_completed(future_to_file):
-            filename = future_to_file[future]
-            try:
-                future.result()  # Get the result of the computation
-            except Exception as exc:
-                logger.error(f'Processing {filename} generated an exception: {exc}')
-            else:
-                end_time = time()
-                logger.info(f"Processed {n} of {len(imgsets)} files.\t\t Estimated remainder: {(end_time - init_time)/n*(len(imgsets)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time)/60:.1f} minutes.")
-                n += 1
-    timer['processing_end'] = time()
-
-    timer['archiving_start'] = time()
-    if 'csv' in config['general']['export_as']:
+    if 'csv' in config['general']['export_as'] and len(imgsets) > 0:
         logger.info('Archiving results and cleaning up.') # Important to isolate processing and cleanup since the threads don't know when everything is done processing.
         with concurrent.futures.ProcessPoolExecutor(max_workers = num_threads) as executor:
             future_to_file = {executor.submit(cleanupFile, filename, segmentation_dir, config): filename for filename in imgsets}
@@ -192,13 +152,11 @@ def mainShadowgraphSegmentation(config, logger):
                     end_time = time()
                     logger.info(f"Cleaning up {n} of {len(imgsets)} files.\t\t Estimated remainder: {(end_time - init_time2)/n*(len(imgsets)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time2)/60:.1f} minutes.")
                     n += 1
-
     timer['archiving_end'] = time()
     logger.info(f"Finished segmentation. Total time: {(time() - init_time)/60:.1f} minutes.")
 
     sidecar = {
-        'directory' : directory,
-        'nFiles' : len(imgsets),
+        'nFiles' : len(avis) + len(imgsets),
         'script_version' : v_string,
         'config' : config,
         'system_info' : {
@@ -254,6 +212,7 @@ def process_video(segmentation_dir, config, avi_path):
                 logger.error(f"Permission denied when making diagnostic directory {diagnostic_path}.")
 
     with open(statistics_filepath, 'a', newline='\n') as outcsv:
+        logger.debug(f"Initialized metrics file for {statistics_filepath}.")
         outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
         outwritter.writerow(['frame', 'roi', *calcStats()]) # Names: frame, roi, ...
 
@@ -307,7 +266,7 @@ def process_image_dir(img_path, segmentation_dir, config):
                 logger.error(f"Error creating directory '{diagnostic_path}': {e}")
 
         with open(f'{output_path[:-1]} statistics.csv', 'a', newline='\n') as outcsv:
-            logger.info(f"Initialized metrics file for {filename}.")
+            logger.debug(f"Initialized metrics file for {filename}.")
             outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
             outwritter.writerow(['frame', 'roi', *calcStats()])
 
@@ -317,7 +276,7 @@ def process_image_dir(img_path, segmentation_dir, config):
     for f in os.listdir(img_path):    
         if f.endswith(('.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG')):
             logger.debug(f"Processing image {f}.")
-            process_area_frame(Frame(sourcePath = img_path + os.path.sep, destPath = output_path, filename = f, frameNumber = k, data = None), config, logger)
+            process_area_frame(Frame(sourcePath = img_path + os.path.sep, destPath = output_path, filename = f, frameNumber = k, data = None), config, logger, True)
             k = k + 1
         else:
             logger.debug(f"Skipped reading non-image file {f}.") 
@@ -391,7 +350,7 @@ def process_linescan_frame(frame, config, logger):
         cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-threshold.jpg', thresh)
 
 
-def process_area_frame(frame, config, logger):
+def process_area_frame(frame, config, logger, apply_corrections = True):
     """
     This function processes each frame (provided as cv2 image frame) for flatfielding and segmentation. The steps include
     1. Flatfield intensities as indicated
@@ -401,34 +360,43 @@ def process_area_frame(frame, config, logger):
     """
     logger.debug(f"Pulled frame from queue. Processing {frame.get_filename()} {frame.get_frame_number()}.")
         
-    image = cv2.imread(frame.get_source_path() + frame.get_filename())
-    center = (image.shape[1] // 2, image.shape[0] // 2)  # Center of the image
-    radius = 1100
-    #image = image[776:2445,1155:3130]
-    image = image[(center[1]-radius):(center[1] + radius), (center[0]-radius):(center[0] + radius)]
-    center = (image.shape[1] // 2, image.shape[0] // 2)  # Center of the image
-    mask = np.zeros(image.shape[:2], dtype="uint8")
-    # Example radius
-    cv2.circle(mask, center, radius, 255, -1)
-    image = ~cv2.bitwise_and(~image, ~image, mask=mask)
+    image = ~cv2.imread(frame.get_source_path() + frame.get_filename(), 0) # white = target, black = bkg
+    
+    if apply_corrections:
+        center = (image.shape[1] // 2, image.shape[0] // 2)  # Center of the image
+        radius = 1050
+        #image = image[776:2445,1155:3130]
 
-    resize = 1
-    #image = cv2.resize(image, (image.shape[1] // resize, image.shape[0] // resize))
-    image = np.array(image)
+        image = image[(center[1]-radius):(center[1] + radius), (center[0]-radius):(center[0] + radius)]
+        center = (image.shape[1] // 2, image.shape[0] // 2)  # Center of the image
+        mask = np.zeros(image.shape[:2], dtype="uint8")
+        cv2.circle(mask, center, radius, 255, -1)
+        image = ~cv2.bitwise_and(image, image, mask=mask)
 
-    ## First: Apply calibration image
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) # targets = white, bkg = black
-    imageSmooth = cv2.medianBlur(image, 1//resize)
-    bkg = cv2.medianBlur(image, 50//resize + 1)
-    bkg = cv2.GaussianBlur(bkg, (150 // resize + 1, 150 // resize + 1), 0)
-    gray = (imageSmooth / (bkg + 1/255)) * 255
-    gray = gray.clip(0,255).astype(np.uint8)
-    grayAnnotated = gray
+        resize = 1
+        #image = cv2.resize(image, (image.shape[1] // resize, image.shape[0] // resize))
+        
+        # Rescale to unit brightness
+        image = np.array(image)  
+        offset = np.min(image)
+        f = 255 / np.median(image - offset)
+        image = (image - offset) * f
+        
+        image = image.clip(0,255).astype(np.uint8)
+        imageSmooth = cv2.medianBlur(image, 1//resize)
+        bkg = cv2.medianBlur(image, 150//resize + 1)
+        bkg = cv2.GaussianBlur(bkg, (150 // resize + 1, 150 // resize + 1), 0)
+        gray = (imageSmooth / (bkg + 1/255)) * 255
+        gray = gray.clip(0,255).astype(np.uint8)
+        
+    else:
+        gray = image.copy()
+        bkg = np.zeros(image.shape[:2], dtype="uint8")
 
+    grayAnnotated = gray.copy()
+    
     #Third:  Apply Otsu's threshold
     thresh = calcThreshold(gray)
-    edges = cv2.Canny(gray, 10, 150, L2gradient = True)
-    #thresh = cv2.bitwise_or(thresh, edges)
     
     cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = cnts[0] if len(cnts) == 2 else cnts[1]
@@ -470,7 +438,7 @@ def process_area_frame(frame, config, logger):
         logger.debug(f"Diagnostic mode, saving threshold image and quantiledfiled image.")
         #cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-corrected.jpg', gray)
         cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-annotated.jpg', grayAnnotated)
-        #cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-original.jpg', image)
+        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-original.jpg', image)
         #cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-background.jpg', bkg)
         cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-threshold.jpg', thresh)
     logger.debug(f"Done with frame {frameNumber}.")                
@@ -589,94 +557,20 @@ def saveROI(filename, imagedata, w, h):
     return(0)
 
 
-def calcThreshold(gray):
+def calcThreshold(gray, runCanny = True, cannyParams = (30,80), dilateKernel = (7,7)):
     thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+
+    if runCanny:
+        graySmooth = cv2.GaussianBlur(gray, (5, 5), 0)
+        edges = cv2.Canny(graySmooth, cannyParams[0], cannyParams[1], L2gradient = True)
+        im_out_canny = np.ones_like(gray) * 255
+        im_out_canny = cv2.bitwise_and(im_out_canny, edges)
+        thresh = thresh | im_out_canny
+
+    # dilate to connect edges for flood fill
+    kernel = np.ones(dilateKernel, np.uint8)
+    thresh = cv2.dilate(thresh, kernel, iterations=1)
     return(thresh)
-
-
-def is_file_above_minimum_size(file_path, min_size, logger):
-    """
-    Check if the file at file_path is larger than min_size bytes.
-
-    :param file_path: Path to the file
-    :param min_size: Minimum size in bytes
-    :return: True if file size is above min_size, False otherwise
-    """
-    if not os.path.exists(file_path):
-        return False
-    try:
-        file_size = os.path.getsize(file_path)
-        return file_size > min_size
-    except OSError as e:
-        logger.error(f"Error: {e}")
-        return False
-
-
-def delete_file(file_path, logger):
-    """
-    Delete the file at file_path.
-
-    :param file_path: Path to the file to be deleted
-    """
-    
-    try:
-        if os.path.isdir(file_path):
-            shutil.rmtree(file_path)
-            logger.debug(f"The folder '{file_path}' has been deleted.")
-        else:
-            os.remove(file_path)
-            logger.debug(f"The file '{file_path}' has been deleted.")
-    except FileNotFoundError:
-        logger.debug(f"The file '{file_path}' does not exist.")
-    except PermissionError:
-        logger.warn(f"Permission denied: unable to delete '{file_path}'.")
-    except OSError as e:
-        logger.error(f"Error: {e}")
-
-
-def setup_logger(name, config):
-    """
-    Helper function to construct a new logger.
-    """
-    if name in logging.Logger.manager.loggerDict:
-        logger = logging.getLogger(name)
-        return logger
-    
-    logger = logging.getLogger(name) 
-    logger.setLevel(logging.DEBUG) # the level should be the lowest level set in handlers
-
-    log_format = logging.Formatter('[%(levelname)s] (%(process)d) %(asctime)s - %(message)s')
-    if not os.path.exists(config['general']['log_path']):
-        try:
-            os.makedirs(config['general']['log_path'])
-        except PermissionError:
-            print(f"Permission denied: Unable to create directory '{config['general']['log_path']}'.")
-            print('Logging will not be performed and may crash the script.')
-        except OSError as e:
-            print(f"Error creating directory '{config['general']['log_path']}': {e}")
-            print('Logging will not be performed and may crash the script.')
-
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(log_format)
-    stream_handler.setLevel(logging.INFO)
-    logger.addHandler(stream_handler)
-
-    debug_handler = TimedRotatingFileHandler(f"{config['general']['log_path']}{name} debug.log", interval = 1, backupCount = 14)
-    debug_handler.setFormatter(log_format)
-    debug_handler.setLevel(logging.DEBUG)
-    logger.addHandler(debug_handler)
-
-    info_handler = TimedRotatingFileHandler(f"{config['general']['log_path']}{name} info.log", interval = 1, backupCount = 14)
-    info_handler.setFormatter(log_format)
-    info_handler.setLevel(logging.INFO)
-    logger.addHandler(info_handler)
-
-    error_handler = TimedRotatingFileHandler(f"{config['general']['log_path']}{name} error.log", interval = 1, backupCount = 14)
-    error_handler.setFormatter(log_format)
-    error_handler.setLevel(logging.ERROR)
-    logger.addHandler(error_handler)
-    return logger
-
 
 
 def get_connection(db_name="data.db"):
@@ -690,7 +584,7 @@ def initialize_database(config):
     conn = get_connection(config['db_path'])
     with conn:
         conn.execute("""
-        CREATE TABLE IF NOT EXISTS data (
+        CREATE TABLE IF NOT EXISTS segmentation (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             filename TEXT,
             frameNumber INTEGER,
@@ -713,7 +607,5 @@ def initialize_database(config):
 def insert_data(value, config):
     conn = get_connection(config['db_path'])
     with conn:
-        # Using transactions to ensure data integrity
-        conn.executemany("INSERT INTO data (filename, frameNumber, roiNumber, x, y, w, h, major_axis_length, minor_axis_length, area, perimeter, min_gray_value, mean_gray_value, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", value)
-    #print(f"Data inserted: {value}")
+        conn.executemany("INSERT INTO segmentation (filename, frameNumber, roiNumber, x, y, w, h, major_axis_length, minor_axis_length, area, perimeter, min_gray_value, mean_gray_value, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", value)
 

@@ -28,26 +28,11 @@ License:
     SOFTWARE.
 """
 
-import os
-import sys
-import shutil
-import logging
-import logging.config
-from time import time
-import numpy as np
-import csv
-from PIL import Image
-import os
 import json
-from logging.handlers import TimedRotatingFileHandler
-import cv2
-import concurrent.futures
-import platform
 from dpi_fun import *
 from dpi_fun.functions import *
 from dpi_fun.functionsSegmentation import *
 
-thread_local = threading.local()
 
 if __name__ == "__main__":
     """
@@ -66,11 +51,6 @@ if __name__ == "__main__":
     directory = sys.argv[-1]
     config['raw_dir'] = os.path.abspath(directory)
     config['segmentation_dir'] = constructSegmentationDir(config['raw_dir'], config)
-    if 'sqlite' in config['general']['export_as']:
-        # SQLite Init
-        config['db_path'] = config['segmentation_dir'] + os.path.sep + 'segmentation.db'
-        initialize_database(config)
-        logger.info('Database initialized.')
 
     ## Run segmentation
     sidecar = mainSegmentation(config, logger)

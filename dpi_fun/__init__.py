@@ -15,5 +15,6 @@ import threading
 
 from .functions import *
 from .functionsSegmentation import *
+from .functionsClassification import *
 
 thread_local = threading.local()
