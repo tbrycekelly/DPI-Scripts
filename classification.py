@@ -30,9 +30,6 @@ License:
 
 import json
 from dpi_fun import *
-from dpi_fun.functions import *
-from dpi_fun.functionsClassification import *
-
 
 if __name__ == "__main__":
     """

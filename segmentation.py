@@ -30,8 +30,8 @@ License:
 
 import json
 from dpi_fun import *
-from dpi_fun.functions import *
-from dpi_fun.functionsSegmentation import *
+#from dpi_fun.functions import *
+#from dpi_fun.functionsSegmentation import *
 
 
 if __name__ == "__main__":
@@ -51,6 +51,8 @@ if __name__ == "__main__":
     directory = sys.argv[-1]
     config['raw_dir'] = os.path.abspath(directory)
     config['segmentation_dir'] = constructSegmentationDir(config['raw_dir'], config)
+    _, filename = os.path.split(config['raw_dir'])
+    config['identity'] = filename
 
     ## Run segmentation
     sidecar = mainSegmentation(config, logger)

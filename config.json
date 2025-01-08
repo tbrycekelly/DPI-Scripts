@@ -3,11 +3,11 @@
         "dir_permissions" : 511,
         "config_name" : "v1.1",
         "log_path" : "../logs/",
-        "export_as" : ["sqlite", "csv"],
+        "export_as" : ["csv"],
         "database_path" : "../database/"
     },
     "segmentation" : {
-        "diagnostic" : true,
+        "diagnostic" : false,
         "basename" : "REG",
         "analysis_dir" : "../analysis/",
         "min_perimeter_statsonly" : 40,
@@ -16,8 +16,10 @@
         "flatfield_q" : 0.1,
         "calibration_image" : "../raw/camera0/shadowgraph/median_image.jpg",
         "overwrite" : true,
-        "video_extensions" : [".avi", ".mp4", ".mkv", ".mov"],
-        "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif"]
+        "video_extensions" : [".avi", ".mp4", ".mkv", ".mov", ".AVI", ".MP4", ".MKV", ".MOV"],
+        "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif", ".JPG", ".PNG", ".TIF", ".TIFF", ".JPEG", ".GIF"],
+        "use_scratch" : true,
+        "scratch_dir" : "/tmp/segmentation/"
     },
     "classification" : {
         "model_name" : "kappa121v20",
@@ -29,14 +31,15 @@
         "cpuonly" : false,
         "overwrite" : true,
         "image_extensions" : [".png"],
-        "feature_space" : false
+        "feature_space" : false,
+        "from_database" : true
     },
     "training" : {
         "scnn_dir" : "../training/training_set_20240724",
         "model_name": "ConvNetA-1",
         "model_type": "ConvNetA",
         "model_path": "../model/",
-        "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif"],
+        "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif", ".JPG", ".PNG", ".TIF", ".TIFF", ".JPEG", ".GIF"],
         "image_size": 128,
         "start" : 0,
         "stop" : 200,

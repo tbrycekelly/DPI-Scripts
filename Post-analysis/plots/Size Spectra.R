@@ -37,7 +37,7 @@ loadCSV = function(path) {
 resultFiles = list.files('../../training/training_set_20241001-REG/', pattern = '.csv', full.names = T)
 weights = array(0, dim = c(length(resultFiles), length(breaks)-1))
 
-
+pdf('../../export/Size Spectra.pdf')
 par(mfrow = c(2,2))
 for (i in 1:length(resultFiles)) {
   tmp = loadCSV(resultFiles[i])
@@ -86,6 +86,8 @@ for (i in 1:length(resultFiles)) {
   abline(h = 0, lty = 2)
   
 }
+dev.off()
+
 avg = apply(weights, 2, median)
 
 
