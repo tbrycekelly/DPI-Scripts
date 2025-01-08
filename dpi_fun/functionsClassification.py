@@ -88,30 +88,44 @@ def mainClassifcation(config, logger):
     except OSError as e:
         logger.error(f"Error creating directory '{config['classification_dir']}': {e}")
     
-    root = [z for z in os.listdir(config['segmentation_dir']) if z.endswith('.zip')]
-    
-    logger.info(f"Found {len(root)} archives for potential processing.")
-    for idx, r in enumerate(root):
-        logger.debug(f"Archive {idx}: {r}")
-    timer['folder_prepare_end'] = time()
+    if config['classification']['from_database']:
+        
+        logger.info(f"Found {len(root)} archives for potential processing.")
+        timer['folder_prepare_end'] = time()
 
-    n = 1
-    init_time = time()
-    timer['processing_start'] = time()
-    for r in root:
+        init_time = time()
+        timer['processing_start'] = time()
         start_time = time()
         runClassifier(r, model, sidecar, config, logger)
-        logger.debug('Cleaning up unpacked archive files.')
-        delete_file(config['segmentation_dir'] + os.path.sep + r.replace(".zip", "") + os.path.sep, logger)
         end_time = time()
-        logger.info(f"Processed {n} of {len(root)} files.\t\t Iteration: {end_time-start_time:.2f} seconds\t Estimated remainder: {(end_time - init_time)/n*(len(root)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time)/60:.1f} minutes.")
-        n+=1
+            
+        logger.info(f"Finished classification. Total time: {(end_time - init_time)/60:.1f} minutes.")
+        timer['processing_end'] = time()
+    else:
+        root = [z for z in os.listdir(config['segmentation_dir']) if z.endswith('.zip')]
         
-    logger.info(f"Finished classification. Total time: {(end_time - init_time)/60:.1f} minutes.")
-    timer['processing_end'] = time()
+        logger.info(f"Found {len(root)} archives for potential processing.")
+        for idx, r in enumerate(root):
+            logger.debug(f"Archive {idx}: {r}")
+        timer['folder_prepare_end'] = time()
+
+        n = 1
+        init_time = time()
+        timer['processing_start'] = time()
+        for r in root:
+            start_time = time()
+            runClassifier(r, model, sidecar, config, logger)
+            logger.debug('Cleaning up unpacked archive files.')
+            delete_file(config['segmentation_dir'] + os.path.sep + r.replace(".zip", "") + os.path.sep, logger)
+            end_time = time()
+            logger.info(f"Processed {n} of {len(root)} files.\t\t Iteration: {end_time-start_time:.2f} seconds\t Estimated remainder: {(end_time - init_time)/n*(len(root)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time)/60:.1f} minutes.")
+            n+=1
+            
+        logger.info(f"Finished classification. Total time: {(end_time - init_time)/60:.1f} minutes.")
+        timer['processing_end'] = time()
 
     classificationSidecar = {
-        'directory' : directory,
+        'directory' : config['segmentation_dir'],
         'nFiles' : len(root),
         'script_version' : v_string,
         'config' : config,
