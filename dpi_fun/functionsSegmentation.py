@@ -10,13 +10,11 @@ import csv
 from PIL import Image
 import json
 import cv2
-import sqlite3
 import threading
 import concurrent.futures
 import platform
 from .functions import *
 
-thread_local = threading.local()
 
 class Frame:
     def __init__(self, sourcePath, destPath, filename, frameNumber, data):
@@ -60,13 +58,27 @@ def mainSegmentation(config, logger):
     
     if 'sqlite' in config['general']['export_as']:
         # SQLite Init
+        if not os.path.exists(config['general']['database_path']):
+            logger.info(f'Database path does not exist, creating now: {config['general']['database_path']}')
+            try:
+                os.makedirs(config['general']['database_path'], mode = config['general']['dir_permissions'],  exist_ok = True) # TODO dir_permissiosn throughout.
+            except PermissionError:
+                logger.error(f"Permission denied while attempting to make database directory: {config['segmentation']['scratch_dir']}.") # TODO Further exception.
+                sys.exit(1)
+                
         config['db_path'] = config['general']['database_path'] + os.path.sep + 'database.db'
-        initialize_database(config)
+        initialize_database(config, logger)
         logger.info('Database initialized.')
 
     ## Determine directories
     raw_dir = config['raw_dir'] # /media/plankline/Data/raw/Camera0/test1
     segmentation_dir = config['segmentation_dir']
+
+    if config['segmentation']['use_scratch']:
+        try:
+            os.makedirs(config['segmentation']['scratch_dir'], mode = config['general']['dir_permissions'],  exist_ok = True) # TODO dir_permissiosn throughout.
+        except PermissionError:
+            logger.error(f"Permission denied while attempting to make scratch directory: {config['segmentation']['scratch_dir']}.") # TODO Further exception.
 
     ## Find files to process:
     avis = findVideos(raw_dir, config, logger)
@@ -74,7 +86,7 @@ def mainSegmentation(config, logger):
     
     timer['processing_start'] = time()
     ## Prepare workers for receiving frames
-    num_threads = min(os.cpu_count() - 2, len(avis) + len(imgsets))
+    num_threads = min(os.cpu_count() - 2, max(len(avis), len(imgsets)))
     logger.info(f"Starting processing with {num_threads} processes...")
 
     if len(avis) > 0:
@@ -119,8 +131,6 @@ def mainSegmentation(config, logger):
         logger.info('Archiving results and cleaning up.') # Important to isolate processing and cleanup since the threads don't know when everything is done processing.
         with concurrent.futures.ProcessPoolExecutor(max_workers = num_threads) as executor:
             future_to_file = {executor.submit(cleanupFile, filename, segmentation_dir, config): filename for filename in avis}
-        
-            # Wait for all tasks to complete
             init_time2 = time()
             n = 1
             for future in concurrent.futures.as_completed(future_to_file):
@@ -139,7 +149,6 @@ def mainSegmentation(config, logger):
         with concurrent.futures.ProcessPoolExecutor(max_workers = num_threads) as executor:
             future_to_file = {executor.submit(cleanupFile, filename, segmentation_dir, config): filename for filename in imgsets}
         
-            # Wait for all tasks to complete
             init_time2 = time()
             n = 1
             for future in concurrent.futures.as_completed(future_to_file):
@@ -183,7 +192,8 @@ def process_video(segmentation_dir, config, avi_path):
     logger = setup_logger('Segmentation (Worker)', config)
     _, filename = os.path.split(avi_path)
     output_path = segmentation_dir + os.path.sep + filename + os.path.sep
-    statistics_filepath = output_path[:-1] + ' statistics.csv'
+    scratch_path = get_scratch(config, filename)
+    statistics_filepath = scratch_path[:-1] + ' statistics.csv'
     
     if is_file_above_minimum_size(statistics_filepath, 0, logger):
         if config['segmentation']['overwrite']:
@@ -199,6 +209,11 @@ def process_video(segmentation_dir, config, avi_path):
             return
 
     if 'csv' in config['general']['export_as']:
+        try:
+            os.makedirs(scratch_path, exist_ok=True)
+        except PermissionError:
+            logger.error(f"Permission denied when making directory {scratch_path}.")
+
         try:
             os.makedirs(output_path, exist_ok=True)
         except PermissionError:
@@ -224,10 +239,10 @@ def process_video(segmentation_dir, config, avi_path):
 
     n = 1 # Frame count
     while True:
-        ret, frame = video.read()
-        if ret:
+        good_return, frame = video.read()
+        if good_return:
             if not frame is None:
-                process_linescan_frame(Frame(sourcePath = avi_path, destPath = output_path, filename = filename, frameNumber = n, data = frame), config, logger)
+                process_linescan_frame(Frame(sourcePath = avi_path, destPath = scratch_path, filename = filename, frameNumber = n, data = frame), config, logger)
                 n += 1 # Increment frame counter.
         else:
             break
@@ -243,6 +258,7 @@ def process_image_dir(img_path, segmentation_dir, config):
 
     _, filename = os.path.split(img_path)
     output_path = segmentation_dir + os.path.sep + filename + os.path.sep
+    scratch_path = get_scratch(config, filename)
 
     if 'csv' in config['general']['export_as']:
         try:
@@ -270,13 +286,17 @@ def process_image_dir(img_path, segmentation_dir, config):
             outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
             outwritter.writerow(['frame', 'roi', *calcStats()])
 
-    logger.debug(f"Reading in calibration image {config['segmentation']['calibration_image']}.")
-    k = 1
+    valid_extensions = tuple(config['segmentation']['image_extensions'])
+    logger.debug(f"Valid extensions: {', '.join(valid_extensions)}")
 
+    k = 1
     for f in os.listdir(img_path):    
-        if f.endswith(('.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG')):
+        if f.endswith(valid_extensions):
             logger.debug(f"Processing image {f}.")
-            process_area_frame(Frame(sourcePath = img_path + os.path.sep, destPath = output_path, filename = f, frameNumber = k, data = None), config, logger, True)
+            process_area_frame(
+                Frame(sourcePath = img_path + os.path.sep, destPath = scratch_path, filename = f,frameNumber = k, data = None),
+                 config, logger, apply_corrections=True
+                )
             k = k + 1
         else:
             logger.debug(f"Skipped reading non-image file {f}.") 
@@ -345,9 +365,10 @@ def process_linescan_frame(frame, config, logger):
     # Save optional diagnsotic images before returning.
     if config['segmentation']['diagnostic']:
         logger.debug('Saving diagnostic images.')
-        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-qualtilefield.jpg', gray)
-        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-annotated.jpg', grayAnnotated)
-        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-threshold.jpg', thresh)
+        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-2qualtilefield.jpg', gray)
+        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-4annotated.jpg', grayAnnotated)
+        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-3threshold.jpg', thresh)
+        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-1original.jpg', frame.read())
 
 
 def process_area_frame(frame, config, logger, apply_corrections = True):
@@ -365,7 +386,6 @@ def process_area_frame(frame, config, logger, apply_corrections = True):
     if apply_corrections:
         center = (image.shape[1] // 2, image.shape[0] // 2)  # Center of the image
         radius = 1050
-        #image = image[776:2445,1155:3130]
 
         image = image[(center[1]-radius):(center[1] + radius), (center[0]-radius):(center[0] + radius)]
         center = (image.shape[1] // 2, image.shape[0] // 2)  # Center of the image
@@ -394,7 +414,8 @@ def process_area_frame(frame, config, logger, apply_corrections = True):
         bkg = np.zeros(image.shape[:2], dtype="uint8")
 
     grayAnnotated = gray.copy()
-    
+    grayAnnotated = cv2.cvtColor(grayAnnotated, cv2.COLOR_GRAY2RGB)
+
     #Third:  Apply Otsu's threshold
     thresh = calcThreshold(gray)
     
@@ -453,6 +474,8 @@ def cleanupFile(rawPath, segmentation_dir, config):
     logger = setup_logger('Segmentation (Worker)', config)
     _, filename = os.path.split(rawPath)
     output_path = segmentation_dir + os.path.sep + filename + os.path.sep
+    scratch_path = get_scratch(config, filename)
+
     logger.debug(f"Compressing to archive {filename + '.zip.'}")
     if is_file_above_minimum_size(segmentation_dir + os.path.sep + filename + '.zip', 0, logger):
         if config['segmentation']['overwrite']:
@@ -461,10 +484,12 @@ def cleanupFile(rawPath, segmentation_dir, config):
         else:
             logger.warn(f"archive exists for {filename} and overwritting is allowed. Skipping Archiving")
 
-    shutil.make_archive(segmentation_dir + os.path.sep + filename, 'zip', output_path)
+    shutil.make_archive(segmentation_dir + os.path.sep + filename, 'zip', scratch_path)
     if not config['segmentation']['diagnostic']:
         logger.debug(f"Cleaning up output path: {output_path}.")
-        delete_file(output_path, logger)
+        delete_file(scratch_path, logger)
+    shutil.move(scratch_path[:-1] + ' statistics.csv', output_path) # TODO
+    delete_file(scratch_path[:-1] + ' statistics.csv', logger) #TODO
 
 
 def constructSegmentationDir(rawPath, config):
@@ -473,10 +498,9 @@ def constructSegmentationDir(rawPath, config):
     and raw file path.
     """
     segmentationDir = rawPath.replace("raw", "analysis") # /media/plankline/Data/analysis/Camera1/Transect1
-    segmentationDir = segmentationDir.replace("camera0/", "camera0/segmentation/") # /media/plankline/Data/analysis/Camera1/Transect1
-    segmentationDir = segmentationDir.replace("camera1/", "camera1/segmentation/") # /media/plankline/Data/analysis/Camera1/segmentation/Transect1
-    segmentationDir = segmentationDir.replace("camera2/", "camera2/segmentation/") # /media/plankline/Data/analysis/Camera1/segmentation/Transect1
-    segmentationDir = segmentationDir.replace("camera3/", "camera3/segmentation/") # /media/plankline/Data/analysis/Camera1/segmentation/Transect1
+
+    for i in range(5):
+        segmentationDir = segmentationDir.replace(f"camera{i}/", f"camera{i}/segmentation/") # /media/plankline/Data/analysis/Camera1/Transect1
         
     segmentationDir = segmentationDir + f"-{config['segmentation']['basename']}" # /media/plankline/Data/analysis/segmentation/Camera1/segmentation/Transect1-REG
     logger = setup_logger('Segmentation (Main)', config)
@@ -487,7 +511,6 @@ def constructSegmentationDir(rawPath, config):
         logger.error(f"Permission denied: Unable to create segmentation directory '{directory_path}'.")
         sys.exit(1)
     except OSError as e:
-        # Catch any other OS-related errors
         logger.error(f"Error creating directory '{directory_path}': {e}")
 
     return(segmentationDir)
@@ -560,7 +583,7 @@ def saveROI(filename, imagedata, w, h):
 def calcThreshold(gray, runCanny = True, cannyParams = (30,80), dilateKernel = (7,7)):
     thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
 
-    if runCanny:
+    if runCanny: # Via Mark Y!
         graySmooth = cv2.GaussianBlur(gray, (5, 5), 0)
         edges = cv2.Canny(graySmooth, cannyParams[0], cannyParams[1], L2gradient = True)
         im_out_canny = np.ones_like(gray) * 255
@@ -572,40 +595,8 @@ def calcThreshold(gray, runCanny = True, cannyParams = (30,80), dilateKernel = (
     thresh = cv2.dilate(thresh, kernel, iterations=1)
     return(thresh)
 
-
-def get_connection(db_name="data.db"):
-    if not hasattr(thread_local, "connection"):
-        thread_local.connection = sqlite3.connect(db_name, check_same_thread=False)
-        thread_local.connection.execute("PRAGMA journal_mode=WAL;")  # Enable Write-Ahead Logging for concurrency
-    return thread_local.connection
-
-
-def initialize_database(config):
-    conn = get_connection(config['db_path'])
-    with conn:
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS segmentation (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filename TEXT,
-            frameNumber INTEGER,
-            roiNumber INTEGER,
-            x INTEGER,
-            y INTEGER,
-            w INTEGER,
-            h INTEGER,
-            major_axis_length REAL,
-            minor_axis_length REAL,
-            area INTEGER,
-            perimeter INTEGER,
-            min_gray_value INTEGER,
-            mean_gray_value INTEGER,
-            image BLOB
-        )
-        """)
-    conn.close()
-
-def insert_data(value, config):
-    conn = get_connection(config['db_path'])
-    with conn:
-        conn.executemany("INSERT INTO segmentation (filename, frameNumber, roiNumber, x, y, w, h, major_axis_length, minor_axis_length, area, perimeter, min_gray_value, mean_gray_value, image) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", value)
+def get_scratch(config, filename):
+    if config['segmentation']['use_scratch']:
+        return(config['segmentation']['scratch_dir'] + os.path.sep + filename + os.path.sep)
+    return(output_path)
 

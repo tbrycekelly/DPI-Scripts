@@ -67,7 +67,7 @@ def mainClassifcation(config, logger):
             for device in visible_devices:
                 assert device.device_type != 'GPU'
         except:
-            # Invalid device or cannot modify virtual devices once initialized.
+            logger.info("Unable to disable GPU device. Exception thrown, continuing.")
             pass
     
     # Load model
