@@ -7,7 +7,7 @@
         "database_path" : "../database/"
     },
     "segmentation" : {
-        "diagnostic" : false,
+        "diagnostic" : true,
         "basename" : "REG",
         "analysis_dir" : "../analysis/",
         "min_perimeter_statsonly" : 40,
@@ -18,8 +18,8 @@
         "overwrite" : true,
         "video_extensions" : [".avi", ".mp4", ".mkv", ".mov", ".AVI", ".MP4", ".MKV", ".MOV"],
         "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif", ".JPG", ".PNG", ".TIF", ".TIFF", ".JPEG", ".GIF"],
-        "use_scratch" : true,
-        "scratch_dir" : "/tmp/segmentation/"
+        "use_scratch" : false,
+        "scratch_dir" : "/tmp"
     },
     "classification" : {
         "model_name" : "kappa121v20",

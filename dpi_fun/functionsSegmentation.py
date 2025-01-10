@@ -59,13 +59,13 @@ def mainSegmentation(config, logger):
     if 'sqlite' in config['general']['export_as']:
         # SQLite Init
         if not os.path.exists(config['general']['database_path']):
-            logger.info(f'Database path does not exist, creating now: {config['general']['database_path']}')
+            logger.info(f"Database path does not exist, creating now: {config['general']['database_path']}")
             try:
                 os.makedirs(config['general']['database_path'], mode = config['general']['dir_permissions'],  exist_ok = True) # TODO dir_permissiosn throughout.
             except PermissionError:
                 logger.error(f"Permission denied while attempting to make database directory: {config['segmentation']['scratch_dir']}.") # TODO Further exception.
                 sys.exit(1)
-                
+
         config['db_path'] = config['general']['database_path'] + os.path.sep + 'database.db'
         initialize_database(config, logger)
         logger.info('Database initialized.')
@@ -260,7 +260,7 @@ def process_image_dir(img_path, segmentation_dir, config):
     output_path = segmentation_dir + os.path.sep + filename + os.path.sep
     scratch_path = get_scratch(config, filename)
 
-    if 'csv' in config['general']['export_as']:
+    if 'csv' in config['general']['export_as']: # Need to construct some directories
         try:
             os.makedirs(output_path, exist_ok=True)
             logger.debug(f"Created directory {output_path} if not already existing.")
@@ -270,6 +270,16 @@ def process_image_dir(img_path, segmentation_dir, config):
         except OSError as e:
             # Catch any other OS-related errors
             logger.error(f"Error creating directory '{output_path}': {e}")
+
+        try:
+            os.makedirs(scratch_path, exist_ok=True)
+            logger.debug(f"Created directory {scratch_path} if not already existing.")
+        except PermissionError:
+            logger.error(f"Permission denied: Unable to create scratch directory '{scratch_path}'.")
+            return
+        except OSError as e:
+            # Catch any other OS-related errors
+            logger.error(f"Error creating directory '{scratch_path}': {e}")
 
         if config['segmentation']['diagnostic']:
             try:
@@ -352,7 +362,7 @@ def process_linescan_frame(frame, config, logger):
             else:
                 roiblob = np.zeros(0).tobytes()
 
-            if 2*w + 2*h > int(config['segmentation']['min_perimeter_statsonly']):
+            if 2*w + 2*h >= int(config['segmentation']['min_perimeter_statsonly']):
                 newstat = calcStats(gray[y:(y+h), x:(x+w)], cnts[i], x, y, w, h)
                 if 'sqlite' in config['general']['export_as']:
                     stats.append([fileName, frameNumber, i, *newstat, sqlite3.Binary(roiblob)])
@@ -365,9 +375,9 @@ def process_linescan_frame(frame, config, logger):
     # Save optional diagnsotic images before returning.
     if config['segmentation']['diagnostic']:
         logger.debug('Saving diagnostic images.')
-        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-2qualtilefield.jpg', gray)
+        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-3qualtilefield.jpg', gray)
         cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-4annotated.jpg', grayAnnotated)
-        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-3threshold.jpg', thresh)
+        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-2threshold.jpg', thresh)
         cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-1original.jpg', frame.read())
 
 
@@ -445,7 +455,7 @@ def process_area_frame(frame, config, logger, apply_corrections = True):
             else:
                 roiblob = np.zeros(0).tobytes()
 
-            if 2*w + 2*h > int(config['segmentation']['min_perimeter_statsonly']):
+            if 2*w + 2*h >= int(config['segmentation']['min_perimeter_statsonly']):
                 newstat = calcStats(gray[y:(y+h), x:(x+w)], cnts[i], x, y, w, h)
                 if 'sqlite' in config['general']['export_as']:
                     stats.append([fileName, frameNumber, i, *newstat, sqlite3.Binary(roiblob)])
@@ -458,10 +468,10 @@ def process_area_frame(frame, config, logger, apply_corrections = True):
     if config['segmentation']['diagnostic']:
         logger.debug(f"Diagnostic mode, saving threshold image and quantiledfiled image.")
         #cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-corrected.jpg', gray)
-        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-annotated.jpg', grayAnnotated)
-        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-original.jpg', image)
+        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-2annotated.jpg', grayAnnotated)
+        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-1original.jpg', image)
         #cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-background.jpg', bkg)
-        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-threshold.jpg', thresh)
+        cv2.imwrite(f'{destPath[:-1] + " diagnostic" + os.path.sep}{fileName}-{frameNumber:06}-3threshold.jpg', thresh)
     logger.debug(f"Done with frame {frameNumber}.")                
 
 
@@ -483,13 +493,14 @@ def cleanupFile(rawPath, segmentation_dir, config):
             delete_file(segmentation_dir + os.path.sep + filename + '.zip', logger)
         else:
             logger.warn(f"archive exists for {filename} and overwritting is allowed. Skipping Archiving")
+    
+    shutil.move(scratch_path[:-1] + ' statistics.csv', output_path) # TODO
+    delete_file(scratch_path[:-1] + ' statistics.csv', logger) #TODO
 
     shutil.make_archive(segmentation_dir + os.path.sep + filename, 'zip', scratch_path)
     if not config['segmentation']['diagnostic']:
         logger.debug(f"Cleaning up output path: {output_path}.")
         delete_file(scratch_path, logger)
-    shutil.move(scratch_path[:-1] + ' statistics.csv', output_path) # TODO
-    delete_file(scratch_path[:-1] + ' statistics.csv', logger) #TODO
 
 
 def constructSegmentationDir(rawPath, config):
@@ -598,5 +609,5 @@ def calcThreshold(gray, runCanny = True, cannyParams = (30,80), dilateKernel = (
 def get_scratch(config, filename):
     if config['segmentation']['use_scratch']:
         return(config['segmentation']['scratch_dir'] + os.path.sep + filename + os.path.sep)
-    return(output_path)
+    return(config['segmentation_dir'] + os.path.sep + filename + os.path.sep)
 
