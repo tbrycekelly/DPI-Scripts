@@ -20,6 +20,7 @@
         "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif", ".JPG", ".PNG", ".TIF", ".TIFF", ".JPEG", ".GIF"],
         "use_scratch" : false,
         "scratch_dir" : "/tmp"
+        "video_concatenate" : 6
     },
     "classification" : {
         "model_name" : "kappa121v20",
@@ -35,16 +36,16 @@
         "from_database" : true
     },
     "training" : {
-        "scnn_dir" : "../training/training_set_20240724",
+        "scnn_dir" : "../training/training_set_20241218",
         "model_name": "ConvNetA-1",
         "model_type": "ConvNetA",
         "model_path": "../model/",
         "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif", ".JPG", ".PNG", ".TIF", ".TIFF", ".JPEG", ".GIF"],
         "image_size": 128,
         "start" : 0,
-        "stop" : 200,
+        "stop" : 600,
         "validationSetRatio" : 0.25,
-        "batchsize" : 64,
+        "batchsize" : 128,
         "seed": 123,
         "overwrite" : true
     }
