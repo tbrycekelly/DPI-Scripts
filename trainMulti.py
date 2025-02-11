@@ -45,7 +45,7 @@ import json
 import platform
 import sys
 from logging.handlers import TimedRotatingFileHandler
-from functions import *
+from dpi_fun.functions import *
 from contextlib import redirect_stdout
 
 def load_model(config, num_classes):
@@ -125,7 +125,7 @@ def getTensorflowDevices(logger):
 
 def mainTrain(config, logger):
 
-    v_string = "V2024.05.22"
+    v_string = "V2025.02.11"
     session_id = str(datetime.datetime.now().strftime("%Y%m%d_%H%M%S")).replace(':', '')
     
     logger.info(f"Starting CNN Model Training Script {v_string}")
@@ -228,68 +228,68 @@ if __name__ == "__main__":
         config = json.load(f)
 
     ## Residual Net
-    if False:
+    if True:
         logger = setup_logger('Training (resnet)', config)
-        config["training"]["model_name"] = "resnet18-3"
+        config["training"]["model_name"] = "resnet18-4"
         config["training"]["model_type"] = "ResNet18"
-        from ResNet18 import *
+        from dpi_fun.ResNet18 import *
         mainTrain(config, logger)
 
         logger = setup_logger('Training (resnet)', config)
-        config["training"]["model_name"] = "resnet34-3"
+        config["training"]["model_name"] = "resnet34-4"
         config["training"]["model_type"] = "ResNet34"
-        from ResNet34 import *
+        from dpi_fun.ResNet34 import *
         mainTrain(config, logger)
 
         logger = setup_logger('Training (resnet)', config)
-        config["training"]["model_name"] = "resnet50-3"
+        config["training"]["model_name"] = "resnet50-4"
         config["training"]["model_type"] = "ResNet50"
-        from ResNet50 import *
+        from dpi_fun.ResNet50 import *
         mainTrain(config, logger)
 
         logger = setup_logger('Training (resnet)', config)
-        config["training"]["model_name"] = "resnet101-3"
+        config["training"]["model_name"] = "resnet101-4"
         config["training"]["model_type"] = "ResNet101"
-        from ResNet101 import *
+        from dpi_fun.ResNet101 import *
         mainTrain(config, logger)
 
         logger = setup_logger('Training (resnet)', config)
-        config["training"]["model_name"] = "resnet152-3"
+        config["training"]["model_name"] = "resnet152-4"
         config["training"]["model_type"] = "ResNet152"
-        from ResNet152 import *
+        from dpi_fun.ResNet152 import *
         mainTrain(config, logger)
 
     if True:
         ## DenseNet
         logger = setup_logger('Training (densenet)', config)
-        config["training"]["model_name"] = "densenet121-3"
+        config["training"]["model_name"] = "densenet121-4"
         config["training"]["model_type"] = "DenseNet121"
-        from DenseNet121 import *
+        from dpi_fun.DenseNet121 import *
         mainTrain(config, logger)
 
         logger = setup_logger('Training (densenet)', config)
-        config["training"]["model_name"] = "densenet169-3"
+        config["training"]["model_name"] = "densenet169-4"
         config["training"]["model_type"] = "DenseNet169"
-        from DenseNet169 import *
+        from dpi_fun.DenseNet169 import *
         mainTrain(config, logger)
 
         logger = setup_logger('Training (densenet)', config)
-        config["training"]["model_name"] = "densenet201-3"
+        config["training"]["model_name"] = "densenet201-4"
         config["training"]["model_type"] = "DenseNet201"
-        from DenseNet201 import *
+        from dpi_fun.DenseNet201 import *
         mainTrain(config, logger)
 
     if True: # Cant run on 3060?
         logger = setup_logger('Training (densenet)', config)
-        config["training"]["model_name"] = "densenet264-3"
+        config["training"]["model_name"] = "densenet264-4"
         config["training"]["model_type"] = "DenseNet264"
-        from DenseNet264 import *
+        from dpi_fun.DenseNet264 import *
         mainTrain(config, logger)
 
     if False:
         ## MobileNet
         logger = setup_logger('Training (mobilenet)', config)
-        config["training"]["model_name"] = "mobilenet-3"
+        config["training"]["model_name"] = "mobilenet-4"
         config["training"]["model_type"] = "MobileNet Test"
         from MobileNet import *
         mainTrain(config, logger)
@@ -297,34 +297,34 @@ if __name__ == "__main__":
     if True:
         ## Deep Conv Net
         logger = setup_logger('Training (convnet)', config)
-        config["training"]["model_name"] = "convnetA-3"
+        config["training"]["model_name"] = "convnetA-4"
         config["training"]["model_type"] = "ConvNetA"
-        from ConvNetA import *
+        from dpi_fun.ConvNetA import *
         mainTrain(config, logger)
 
         logger = setup_logger('Training (convnet)', config)
-        config["training"]["model_name"] = "convnetB-3"
+        config["training"]["model_name"] = "convnetB-4"
         config["training"]["model_type"] = "ConvNetB"
-        from ConvNetB import *
+        from dpi_fun.ConvNetB import *
         mainTrain(config, logger)
 
         logger = setup_logger('Training (convnet)', config)
-        config["training"]["model_name"] = "convnetD-3"
+        config["training"]["model_name"] = "convnetD-4"
         config["training"]["model_type"] = "ConvNetD"
-        from ConvNetD import *
+        from dpi_fun.ConvNetD import *
         mainTrain(config, logger)
 
         logger = setup_logger('Training (convnet)', config)
-        config["training"]["model_name"] = "convnetE-3"
+        config["training"]["model_name"] = "convnetE-4"
         config["training"]["model_type"] = "ConvNetE"
-        from ConvNetE import *
+        from dpi_fun.ConvNetE import *
         mainTrain(config, logger)
 
     if True:
         logger = setup_logger('Training (LuoNet)', config)
-        config["training"]["model_name"] = "luonet-3"
+        config["training"]["model_name"] = "luonet-4"
         config["training"]["model_type"] = "LuoNet"
-        from LuoNet import *
+        from dpi_fun.LuoNet import *
         mainTrain(config, logger)
 
     sys.exit(0) # Successful close
