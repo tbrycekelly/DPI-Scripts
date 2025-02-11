@@ -90,6 +90,9 @@ def mainClassifcation(config, logger):
     
     if config['classification']['from_database']:
         
+        # TODO Define root or otherwise make this section work!
+        sys.exit(1)
+
         logger.info(f"Found {len(root)} archives for potential processing.")
         timer['folder_prepare_end'] = time()
 

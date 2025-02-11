@@ -3,14 +3,14 @@ source('processing/mid level utilities.R')
 
 #### User input: 
 
-outputDir = '../../export/testWithPrior'
+outputDir = '../../export/shadowgraph2'
 nMax = 1000 # Maximum number of images per pull folder
 pMin = 0.0 # minimum probability for pulled images (0 = pull all, 0.9 = 90% confidence)
 
-camera = 'camera1'
-transect = 'SewardLine_Summer22'
+camera = 'camera0'
+transect = 'shadowgraph'
 segmentationName = 'REG'
-modelName = 'lambda121v2'
+modelName = 'densenet169-1'
 
 
 #### Autopilot from here:
@@ -58,6 +58,7 @@ if (!dir.exists(outputDir)) {
   dir.create(outputDir, recursive = T)
 }
 
+results = list()
 initTime = Sys.time()
 for (i in 1:length(sourceFiles$classificationFiles)) {
   startTime = Sys.time()
@@ -65,8 +66,8 @@ for (i in 1:length(sourceFiles$classificationFiles)) {
   predictions = read.csv(paste0(sourceFiles$classificationPath, sourceFiles$classificationFiles[i]), header = T)
   
   ## Extract ROIs
-  zipName = paste0(sourceFiles$segmentationPath, gsub('_prediction.csv', '.zip', sourceFiles$classificationFiles[i]))
-  extractName = paste0(sourceFiles$segmentationPath, gsub('_prediction.csv', '/', sourceFiles$classificationFiles[i]))
+  zipName = paste0(sourceFiles$segmentationPath, gsub(' prediction.csv', '.zip', sourceFiles$classificationFiles[i]))
+  extractName = paste0(sourceFiles$segmentationPath, gsub(' prediction.csv', '/', sourceFiles$classificationFiles[i]))
   unzip(zipfile = zipName, exdir = extractName)
   
   classes = colnames(predictions)[-1]
@@ -86,6 +87,10 @@ for (i in 1:length(sourceFiles$classificationFiles)) {
             to = paste0(outputDir, '/', classes[pIndex], '/[', roundNumber(pmax), '] ', gsub('.png', '', predictions$X), '.png')[l])
   unlink(extractName, recursive = T)
   endTime = Sys.time()
+  
+  results[[i]] = data.frame(filename = paste0('[', roundNumber(pmax), '] ', gsub('.png', '', predictions$X), '.png')[l],
+                            class = classes[pIndex],
+                            pmax = pmax)
   
   message('Finished file ', i, ' out of ', length(sourceFiles$classificationFiles),
           '.\tElapsed time: ', round(as.numeric(endTime) - as.numeric(initTime)), ' sec',
@@ -111,7 +116,7 @@ for (folder in list.dirs(outputDir)[-1]) {
   }
 }
 
- zip(outputDir, zipfile = paste0(outputDir, '.zip'))
+  zip(outputDir, zipfile = paste0(outputDir, '.zip'))
 
 
 

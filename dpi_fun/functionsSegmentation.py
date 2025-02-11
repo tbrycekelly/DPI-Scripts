@@ -412,6 +412,7 @@ def process_area_frame(frame, config, logger, apply_corrections = True):
         f = 255 / np.median(image - offset)
         image = (image - offset) * f
         
+        # TODO Improve this area
         image = image.clip(0,255).astype(np.uint8)
         imageSmooth = cv2.medianBlur(image, 1//resize)
         bkg = cv2.medianBlur(image, 150//resize + 1)
@@ -591,7 +592,7 @@ def saveROI(filename, imagedata, w, h):
     return(0)
 
 
-def calcThreshold(gray, runCanny = True, cannyParams = (30,80), dilateKernel = (7,7)):
+def calcThreshold(gray, runCanny = True, cannyParams = (30,80), dilateKernel = (5,5)):
     thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
 
     if runCanny: # Via Mark Y!
