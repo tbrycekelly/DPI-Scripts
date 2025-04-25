@@ -2,22 +2,26 @@
     "general" : {
         "dir_permissions" : 511,
         "config_name" : "v1.1",
-        "log_path" : "../logs/"
+        "log_path" : "../logs/",
+        "export_as" : ["csv"],
+        "database_path" : "../database/"
     },
     "segmentation" : {
         "diagnostic" : false,
-        "basename" : "REG",
-        "analysis_dir" : "../analysis/",
-        "min_perimeter" : 160,
-        "max_perimeter" : 40000,
-        "min_perimeter_statsonly" : 160,
+        "basename" : "REALTIME",
+        "analysis_dir" : "../realtime/",
+        "min_perimeter_statsonly" : 400,
+        "min_perimeter" : 1000,
+        "max_perimeter" : 6000,
         "flatfield_q" : 0.1,
         "calibration_image" : "../raw/camera0/shadowgraph/median_image.jpg",
-        "overwrite" : true,
-        "video_extensions" : [".avi", ".mp4", ".mkv", ".mov"],
-        "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif"],
-        "num_threads" : 12,
-        "wait_time": 5
+        "overwrite" : false,
+        "video_extensions" : [".avi", ".mp4", ".mkv", ".mov", ".AVI", ".MP4", ".MKV", ".MOV"],
+        "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif", ".JPG", ".PNG", ".TIF", ".TIFF", ".JPEG", ".GIF"],
+        "use_scratch" : false,
+        "scratch_dir" : "/tmp",
+        "wait_time": 10,
+        "cleanup": false
     },
     "classification" : {
         "model_name" : "kappa121v20",
@@ -28,20 +32,22 @@
         "image_size" : 128,
         "cpuonly" : false,
         "overwrite" : true,
-        "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif"]
+        "image_extensions" : [".png"],
+        "feature_space" : false,
+        "from_database" : true
     },
     "training" : {
-        "scnn_dir" : "../training/training_set_20240829",
-        "model_name": "lambda121v2",
-        "model_type": "DenseNet121",
+        "scnn_dir" : "../training/kaggle2",
+        "model_name": "ConvNetA-1",
+        "model_type": "ConvNetA",
         "model_path": "../model/",
-        "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif"],
+        "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif", ".JPG", ".PNG", ".TIF", ".TIFF", ".JPEG", ".GIF"],
         "image_size": 128,
         "start" : 0,
         "stop" : 300,
-        "validationSetRatio" : 0.25,
+        "validationSetRatio" : 0.20,
         "batchsize" : 128,
         "seed": 123,
-        "overwrite" : false
+        "overwrite" : true
     }
 }

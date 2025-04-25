@@ -54,8 +54,12 @@ if __name__ == "__main__":
     _, filename = os.path.split(config['raw_dir'])
     config['identity'] = filename
 
+    ## Find files to process:
+    avis = findVideos(config, logger)
+    imgsets = findImgsets(config, logger)
+
     ## Run segmentation
-    sidecar = mainSegmentation(config, logger)
+    sidecar = mainSegmentation(config, logger, avis, imgsets)
 
     ## Write sidecar file
     json_save_pathname = config['segmentation_dir'] + '.json'

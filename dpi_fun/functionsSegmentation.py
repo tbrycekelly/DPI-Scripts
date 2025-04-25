@@ -43,7 +43,7 @@ class Frame:
         self.frame = newframe
 
 
-def mainSegmentation(config, logger):
+def mainSegmentation(config, logger, avis, imgsets):
     """
     The main access function for segmentation. Can be called from external scripts, but designed initially
      to be called from __main__.
@@ -79,10 +79,6 @@ def mainSegmentation(config, logger):
             os.makedirs(config['segmentation']['scratch_dir'], mode = config['general']['dir_permissions'],  exist_ok = True) # TODO dir_permissiosn throughout.
         except PermissionError:
             logger.error(f"Permission denied while attempting to make scratch directory: {config['segmentation']['scratch_dir']}.") # TODO Further exception.
-
-    ## Find files to process:
-    avis = findVideos(raw_dir, config, logger)
-    imgsets = findImgsets(raw_dir, config, logger)
     
     timer['processing_start'] = time()
     ## Prepare workers for receiving frames
@@ -127,7 +123,7 @@ def mainSegmentation(config, logger):
     timer['processing_end'] = time()
 
     timer['archiving_start'] = time()
-    if 'csv' in config['general']['export_as'] and len(avis) > 0:
+    if 'csv' in config['general']['export_as'] and len(avis) > 0 and config['segmentation']['cleanup']:
         logger.info('Archiving results and cleaning up.') # Important to isolate processing and cleanup since the threads don't know when everything is done processing.
         with concurrent.futures.ProcessPoolExecutor(max_workers = num_threads) as executor:
             future_to_file = {executor.submit(cleanupFile, filename, segmentation_dir, config): filename for filename in avis}
@@ -144,7 +140,7 @@ def mainSegmentation(config, logger):
                     logger.info(f"Cleaning up {n} of {len(avis)} files.\t\t Estimated remainder: {(end_time - init_time2)/n*(len(avis)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time2)/60:.1f} minutes.")
                     n += 1
 
-    if 'csv' in config['general']['export_as'] and len(imgsets) > 0:
+    if 'csv' in config['general']['export_as'] and len(imgsets) > 0 and config['segmentation']['cleanup']:
         logger.info('Archiving results and cleaning up.') # Important to isolate processing and cleanup since the threads don't know when everything is done processing.
         with concurrent.futures.ProcessPoolExecutor(max_workers = num_threads) as executor:
             future_to_file = {executor.submit(cleanupFile, filename, segmentation_dir, config): filename for filename in imgsets}
@@ -167,6 +163,7 @@ def mainSegmentation(config, logger):
     sidecar = {
         'nFiles' : len(avis) + len(imgsets),
         'script_version' : v_string,
+        'sessionid': str(datetime.datetime.now().strftime("%Y%m%d_%H%M%S")).replace(':', ''),
         'config' : config,
         'system_info' : {
             'System' : platform.system(),
@@ -528,14 +525,20 @@ def constructSegmentationDir(rawPath, config):
     return(segmentationDir)
 
 
-def findVideos(raw_dir, config, logger):
+def findVideos(config, logger, checkWriteStatus = False):
     """
     Helper function to search for availabile video files in a directory.
     """
+    raw_dir = config['raw_dir']
     avis = []
     valid_extensions = tuple(config['segmentation']['video_extensions'])
     logger.debug(f"Valid extensions: {', '.join(valid_extensions)}")
-    avis = [os.path.join(raw_dir, avi) for avi in os.listdir(raw_dir) if avi.endswith(valid_extensions)]
+
+    if checkWriteStatus:
+        avis = [os.path.join(raw_dir, avi) for avi in os.listdir(raw_dir) if avi.endswith(valid_extensions) and is_file_finished_writing(os.path.join(raw_dir, avi))]
+    else:
+        avis = [os.path.join(raw_dir, avi) for avi in os.listdir(raw_dir) if avi.endswith(valid_extensions)]
+        
     logger.info(f"Number of videos found: {len(avis)}")
 
     for idx, av in enumerate(avis):
@@ -544,12 +547,14 @@ def findVideos(raw_dir, config, logger):
     return(avis)
 
 
-def findImgsets(raw_dir, config, logger):
+def findImgsets(config, logger, checkWriteStatus = False):
     """
     Helper function to search for availabile video files in a directory.
     """
+    raw_dir = config['raw_dir']
     imgsets = []
     imgsets = [os.path.join(raw_dir, d) for d in os.listdir(raw_dir) if os.path.isdir(os.path.join(raw_dir, d))]
+    
     logger.info(f"Number of imgsets found: {len(imgsets)}")
 
     for idx, av in enumerate(imgsets):

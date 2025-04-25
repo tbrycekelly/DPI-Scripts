@@ -3,13 +3,14 @@ import logging.config
 import os
 import shutil
 from logging.handlers import TimedRotatingFileHandler
-from time import time
+from time import time, sleep
 import sys
 import numpy as np
 import csv
 from PIL import Image
 import json
 import cv2
+import datetime
 
 def is_file_above_minimum_size(file_path, min_size, logger):
     """
@@ -93,3 +94,13 @@ def setup_logger(name, config):
     error_handler.setLevel(logging.ERROR)
     logger.addHandler(error_handler)
     return logger
+
+
+def is_file_finished_writing(file_path, wait_time=0.2):
+    initial_size = os.path.getsize(file_path)
+    sleep(wait_time)
+    new_size = os.path.getsize(file_path)
+    
+    if initial_size == new_size:
+        return True
+    return False

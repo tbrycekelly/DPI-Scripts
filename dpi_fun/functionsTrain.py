@@ -165,6 +165,7 @@ def mainTrain(config, logger):
         'model_type' : config['training']['model_type'],
         'labels' : train_ds.class_names,
         'script_version' : v_string,
+        'sessionid': str(datetime.datetime.now().strftime("%Y%m%d_%H%M%S")).replace(':', ''),
         'config' : config,
         'system_info' : {
             'System' : platform.system(),

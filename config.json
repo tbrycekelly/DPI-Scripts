@@ -15,11 +15,12 @@
         "max_perimeter" : 6000,
         "flatfield_q" : 0.1,
         "calibration_image" : "../raw/camera0/shadowgraph/median_image.jpg",
-        "overwrite" : true,
+        "overwrite" : false,
         "video_extensions" : [".avi", ".mp4", ".mkv", ".mov", ".AVI", ".MP4", ".MKV", ".MOV"],
         "image_extensions" : [".jpg", ".png", ".tif", ".tiff", ".jpeg", ".gif", ".JPG", ".PNG", ".TIF", ".TIFF", ".JPEG", ".GIF"],
         "use_scratch" : false,
-        "scratch_dir" : "/tmp"
+        "scratch_dir" : "/tmp",
+        "cleanup": true
     },
     "classification" : {
         "model_name" : "kappa121v20",

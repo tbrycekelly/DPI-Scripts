@@ -131,6 +131,7 @@ def mainClassifcation(config, logger):
         'directory' : config['segmentation_dir'],
         'nFiles' : len(root),
         'script_version' : v_string,
+        'sessionid': str(datetime.datetime.now().strftime("%Y%m%d_%H%M%S")).replace(':', ''),
         'config' : config,
         'labels' : sidecar['labels'],
         'system_info' : {
