@@ -235,14 +235,14 @@ def process_video(segmentation_dir, config, avi_path):
         return
 
     n = 1 # Frame count
-    while True:
+    while video.isOpened():
         good_return, frame = video.read()
-        if good_return:
-            if not frame is None:
-                process_linescan_frame(Frame(sourcePath = avi_path, destPath = scratch_path, filename = filename, frameNumber = n, data = frame), config, logger)
-                n += 1 # Increment frame counter.
-        else:
+        if not good_return:
             break
+        if not frame is None:
+            process_linescan_frame(Frame(sourcePath = avi_path, destPath = scratch_path, filename = filename, frameNumber = n, data = frame), config, logger)
+            n += 1 # Increment frame counter.
+    video.release()
 
 
 def process_image_dir(img_path, segmentation_dir, config):
@@ -301,7 +301,7 @@ def process_image_dir(img_path, segmentation_dir, config):
         if f.endswith(valid_extensions):
             logger.debug(f"Processing image {f}.")
             process_area_frame(
-                Frame(sourcePath = img_path + os.path.sep, destPath = scratch_path, filename = f,frameNumber = k, data = None),
+                Frame(sourcePath = img_path + os.path.sep, destPath = scratch_path, filename = f, frameNumber = k, data = None),
                  config, logger, apply_corrections=True
                 )
             k = k + 1
@@ -330,8 +330,11 @@ def process_linescan_frame(frame, config, logger):
     gray = gray.clip(0,255).astype(np.uint8)
     grayAnnotated = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
+    rescale_factor = 2
+    gray_small = cv2.resize(gray, (0,0), fx=1/rescale_factor, fy=1/rescale_factor, interpolation=cv2.INTER_AREA)
+
     # Apply Otsu's threshold
-    thresh = calcThreshold(gray)
+    thresh = calcThreshold(gray_small)
     cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = cnts[0] if len(cnts) == 2 else cnts[1]
         
@@ -348,6 +351,10 @@ def process_linescan_frame(frame, config, logger):
         stats = []
         for i in range(len(cnts)):
             x,y,w,h = cv2.boundingRect(cnts[i])
+            x = x * rescale_factor
+            y = y * rescale_factor
+            w = w * rescale_factor
+            h = h * rescale_factor
 
             if 2*w + 2*h >= int(config['segmentation']['min_perimeter']) and 2*w + 2*h <= int(config['segmentation']['max_perimeter']):
                 if 'sqlite' in config['general']['export_as']:
@@ -360,7 +367,7 @@ def process_linescan_frame(frame, config, logger):
                 roiblob = np.zeros(0).tobytes()
 
             if 2*w + 2*h >= int(config['segmentation']['min_perimeter_statsonly']):
-                newstat = calcStats(gray[y:(y+h), x:(x+w)], cnts[i], x, y, w, h)
+                newstat = calcStats(gray[y:(y+h), x:(x+w)], cnts[i], x, y, w, h, rescale_factor)
                 if 'sqlite' in config['general']['export_as']:
                     stats.append([fileName, frameNumber, i, *newstat, sqlite3.Binary(roiblob)])
                 if 'csv' in config['general']['export_as']:
@@ -563,17 +570,20 @@ def findImgsets(config, logger, checkWriteStatus = False):
     return(imgsets)
 
 
-def calcStats(grayROI = None, cnt = None, x = None, y = None, w = None, h = None):
+def calcStats(grayROI = None, cnt = None, x = None, y = None, w = None, h = None, rescale_factor = 1.0):
     if cnt is None:
         return(['x', 'y', 'w', 'h', 'major_axis', 'minor_axis', 'area', 'perimeter', 'min_gray_value', 'mean_gray_value'])
 
     area = cv2.contourArea(cnt)
     perimeter = cv2.arcLength(cnt, True)
+    area = area * rescale_factor**2
+    perimeter = perimeter * rescale_factor
+
     if len(cnt) >= 5:  # Minimum number of points required to fit an ellipse
         ellipse = cv2.fitEllipse(cnt)
         center, axes, angle = ellipse
-        major_axis_length = round(max(axes),1)
-        minor_axis_length = round(min(axes),1)
+        major_axis_length = round(max(axes) * rescale_factor, 1)
+        minor_axis_length = round(min(axes) * rescale_factor, 1)
     else :
         major_axis_length = -1
         minor_axis_length = -1

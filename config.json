@@ -7,7 +7,7 @@
         "database_path" : "../database/"
     },
     "segmentation" : {
-        "diagnostic" : true,
+        "diagnostic" : false,
         "basename" : "REG",
         "analysis_dir" : "../analysis/",
         "min_perimeter_statsonly" : 40,
