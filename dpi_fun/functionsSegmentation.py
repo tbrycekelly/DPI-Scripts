@@ -56,20 +56,6 @@ def mainSegmentation(config, logger, avis, imgsets):
         logger.error(f'Specified path ({config["raw_dir"]}) does not exist. Stopping.')
         sys.exit(1)
     
-    if 'sqlite' in config['general']['export_as']:
-        # SQLite Init
-        if not os.path.exists(config['general']['database_path']):
-            logger.info(f"Database path does not exist, creating now: {config['general']['database_path']}")
-            try:
-                os.makedirs(config['general']['database_path'], mode = config['general']['dir_permissions'],  exist_ok = True) # TODO dir_permissiosn throughout.
-            except PermissionError:
-                logger.error(f"Permission denied while attempting to make database directory: {config['segmentation']['scratch_dir']}.") # TODO Further exception.
-                sys.exit(1)
-
-        config['db_path'] = config['general']['database_path'] + os.path.sep + 'database.db'
-        initialize_database(config, logger)
-        logger.info('Database initialized.')
-
     ## Determine directories
     raw_dir = config['raw_dir'] # /media/plankline/Data/raw/Camera0/test1
     segmentation_dir = config['segmentation_dir']
@@ -123,7 +109,7 @@ def mainSegmentation(config, logger, avis, imgsets):
     timer['processing_end'] = time()
 
     timer['archiving_start'] = time()
-    if 'csv' in config['general']['export_as'] and len(avis) > 0 and config['segmentation']['cleanup']:
+    if len(avis) > 0 and config['segmentation']['cleanup']:
         logger.info('Archiving results and cleaning up.') # Important to isolate processing and cleanup since the threads don't know when everything is done processing.
         with concurrent.futures.ProcessPoolExecutor(max_workers = num_threads) as executor:
             future_to_file = {executor.submit(cleanupFile, filename, segmentation_dir, config): filename for filename in avis}
@@ -140,7 +126,7 @@ def mainSegmentation(config, logger, avis, imgsets):
                     logger.info(f"Cleaning up {n} of {len(avis)} files.\t\t Estimated remainder: {(end_time - init_time2)/n*(len(avis)-n) / 60:.1f} minutes.\t Elapsed time: {(end_time - init_time2)/60:.1f} minutes.")
                     n += 1
 
-    if 'csv' in config['general']['export_as'] and len(imgsets) > 0 and config['segmentation']['cleanup']:
+    if len(imgsets) > 0 and config['segmentation']['cleanup']:
         logger.info('Archiving results and cleaning up.') # Important to isolate processing and cleanup since the threads don't know when everything is done processing.
         with concurrent.futures.ProcessPoolExecutor(max_workers = num_threads) as executor:
             future_to_file = {executor.submit(cleanupFile, filename, segmentation_dir, config): filename for filename in imgsets}
@@ -357,24 +343,13 @@ def process_linescan_frame(frame, config, logger):
             h = h * rescale_factor
 
             if 2*w + 2*h >= int(config['segmentation']['min_perimeter']) and 2*w + 2*h <= int(config['segmentation']['max_perimeter']):
-                if 'sqlite' in config['general']['export_as']:
-                    roiblob = gray[y:(y+h), x:(x+w)].tobytes()
-                if 'csv' in config['general']['export_as']:
-                    saveROI(f"{destPath}{fileName}-{frameNumber:06}-{i:06}.png", gray[y:(y+h), x:(x+w)], w, h)
+                saveROI(f"{destPath}{fileName}-{frameNumber:06}-{i:06}.png", gray[y:(y+h), x:(x+w)], w, h)
                 if config['segmentation']['diagnostic']:
                     cv2.rectangle(grayAnnotated, (x, y), (x+w, y+h), (0,0,255), 1)
-            else:
-                roiblob = np.zeros(0).tobytes()
 
             if 2*w + 2*h >= int(config['segmentation']['min_perimeter_statsonly']):
                 newstat = calcStats(gray[y:(y+h), x:(x+w)], cnts[i], x, y, w, h, rescale_factor)
-                if 'sqlite' in config['general']['export_as']:
-                    stats.append([fileName, frameNumber, i, *newstat, sqlite3.Binary(roiblob)])
-                if 'csv' in config['general']['export_as']:
-                    outwritter.writerow([frameNumber, i, *newstat])
-
-        if 'sqlite' in config['general']['export_as']:
-            insert_data(stats, config)
+                outwritter.writerow([frameNumber, i, *newstat])
 
     # Save optional diagnsotic images before returning.
     if config['segmentation']['diagnostic']:
@@ -409,7 +384,6 @@ def process_area_frame(frame, config, logger, apply_corrections = True):
 
         resize = 1
         #image = cv2.resize(image, (image.shape[1] // resize, image.shape[0] // resize))
-        
         # Rescale to unit brightness
         image = np.array(image)  
         offset = np.min(image)
@@ -451,24 +425,13 @@ def process_area_frame(frame, config, logger, apply_corrections = True):
             x,y,w,h = cv2.boundingRect(cnts[i])
 
             if 2*w + 2*h >= int(config['segmentation']['min_perimeter']) and 2*w + 2*h <= int(config['segmentation']['max_perimeter']):
-                if 'sqlite' in config['general']['export_as']:
-                    roiblob = gray[y:(y+h), x:(x+w)].tobytes()
-                if 'csv' in config['general']['export_as']:
-                    saveROI(f"{destPath}{fileName}-{frameNumber:06}-{i:06}.png", gray[y:(y+h), x:(x+w)], w, h)
+                saveROI(f"{destPath}{fileName}-{frameNumber:06}-{i:06}.png", gray[y:(y+h), x:(x+w)], w, h)
                 if config['segmentation']['diagnostic']:
                     cv2.rectangle(grayAnnotated, (x, y), (x+w, y+h), (0,0,255), 1)
-            else:
-                roiblob = np.zeros(0).tobytes()
 
             if 2*w + 2*h >= int(config['segmentation']['min_perimeter_statsonly']):
                 newstat = calcStats(gray[y:(y+h), x:(x+w)], cnts[i], x, y, w, h)
-                if 'sqlite' in config['general']['export_as']:
-                    stats.append([fileName, frameNumber, i, *newstat, sqlite3.Binary(roiblob)])
-                if 'csv' in config['general']['export_as']:
-                    outwritter.writerow([frameNumber, i, *newstat])
-
-        if 'sqlite' in config['general']['export_as']:
-            insert_data(stats, config)
+                outwritter.writerow([frameNumber, i, *newstat])
                 
     if config['segmentation']['diagnostic']:
         logger.debug(f"Diagnostic mode, saving threshold image and quantiledfiled image.")

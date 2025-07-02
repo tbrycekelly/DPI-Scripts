@@ -30,7 +30,7 @@ License:
 
 import json
 from dpi_fun import *
-from .DenseNet121 import *
+from dpi_fun.DenseNet121 import *
 
 if __name__ == "__main__":
     with open('config.json', 'r') as f:
