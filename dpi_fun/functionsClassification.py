@@ -33,7 +33,7 @@ def loadModel(config, logger):
     if config['classification']['feature_space']:
         ## Modify model for feature extraction:
         # Remove final softmax activation to expose penultimate dense layer. Generate as new model object.
-        x = model.layers[-2].output 
+        x = model.layers[-3].output 
         model = tf.keras.models.Model(inputs = model.input, outputs = x)
     
     with open(label_path, 'r') as file:
@@ -173,5 +173,6 @@ def runClassifier(r, model, sidecar, config, logger):
     predictions = model.predict(images, verbose = 0)
 
     df = pd.DataFrame(predictions, index = image_files) 
-    df.columns = sidecar['labels']
+    if not config['classification']['feature_space']:
+        df.columns = sidecar['labels']
     df.to_csv(classification_output_filepath, index = True, header = True, sep = ',')
