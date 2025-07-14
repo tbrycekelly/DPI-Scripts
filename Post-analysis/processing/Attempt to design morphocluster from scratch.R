@@ -1,11 +1,32 @@
 source('processing/low level utilities.R')
 source('processing/mid level utilities.R')
 
+convert = function(x, pca) {
+  #tmp = t(as.matrix(x))
+  
+  #result = pca$rotation %*% ((tmp - pca$center) / pca$scale)
+  result = predict(pca, x)
+  return(result)
+}
+
+determineCluster = function(x, centers) {
+  cluster = rep(NA, ncol(x)) 
+  
+  for (i in 1:ncol(x)) {
+    d = apply(centers, 1, function(center) {
+      sum((x[,i] - center)^2)
+    })
+    
+    cluster[i] = which.min(d)
+  }
+  
+  return(cluster)
+}
+
 #### User input: 
 
 outputDir = '../../export/features'
 nMax = 1000 # Maximum number of images per pull folder
-pMin = 0.0 # minimum probability for pulled images (0 = pull all, 0.9 = 90% confidence)
 
 camera = 'camera0'
 transect = 'test1-ffv1'
@@ -37,45 +58,40 @@ for (i in 2:nSample) {
   classification = rbind(classification, tmp)
 }
 
-weight = 1 # init prior weights
+## Calculate PCA rotation matrix then apply rotation matrix to data.
+# Need to save rotation matrix to apply to future datasets as well.
+problemCol = which(apply(classification[,-1], 2, sd) == 0)
+for (col in problemCol) {
+  message('Column ', col + 1, ' has zero variance, adding noise.')
+  classification[,col + 1] = classification[,col + 1] + rnorm(nrow(classification), sd = 1e-8)
+}
 
-prior = getPrior(classification[,-1])
+pca = prcomp(classification[,-1], tol = 1e-8, scale. = T, center = T)
+classification[,-1] = convert(classification[,-1], pca)
 
-weight = matrix(prior$weight, nrow = 1, ncol = length(prior$weight), byrow = T)
-prior = getPrior(classification[,-1] * weight)
-
-weight = matrix(prior$weight, nrow = 1, ncol = length(prior$weight), byrow = T)
-prior = getPrior(classification[,-1] * weight)
-
-weight = matrix(prior$weight, nrow = 1, ncol = length(prior$weight), byrow = T)
-prior = getPrior(classification[,-1] * weight)
-
-weight = matrix(prior$weight, nrow = 1, ncol = length(prior$weight), byrow = T)
-prior = getPrior(classification[,-1] * weight)
-
-weight = matrix(prior$weight, nrow = 1, ncol = length(prior$weight), byrow = T)
-prior[order(prior$n),]
+## Determine cluster centers:
+Ncenters = 100
+centers = kmeans(classification[,-1], centers = Ncenters, iter.max = 100)$centers
 
 if (!dir.exists(outputDir)) {
   dir.create(outputDir, recursive = T)
 }
 
-results = list()
 initTime = Sys.time()
 for (i in 1:length(sourceFiles$classificationFiles)) {
   startTime = Sys.time()
   
   predictions = read.csv(paste0(sourceFiles$classificationPath, sourceFiles$classificationFiles[i]), header = T)
+  tmp = convert(predictions[,-1], pca)
+  assignedCluster = determineCluster(tmp, centers = centers)
+  
   
   ## Extract ROIs
   zipName = paste0(sourceFiles$segmentationPath, gsub(' prediction.csv', '.zip', sourceFiles$classificationFiles[i]))
   extractName = paste0(sourceFiles$segmentationPath, gsub(' prediction.csv', '/', sourceFiles$classificationFiles[i]))
   unzip(zipfile = zipName, exdir = extractName)
   
-  classes = colnames(predictions)[-1]
-  pmax = apply(predictions[,-1] * weight, 1, function(x){max(x) / sum(x)})
-  pmax = round(pmax, digits = 2)
-  pIndex = apply(predictions[,-1] * weight, 1, which.max) # Weighted based on prior
+  classes = 1:Ncenters
   
   for (class in classes) {
     if (!dir.exists(paste0(outputDir, '/', class))) {
@@ -83,16 +99,10 @@ for (i in 1:length(sourceFiles$classificationFiles)) {
     }
   }
   
-  l = pmax >= pMin
-  
-  file.copy(from = paste0(extractName, '/', predictions$X)[l], 
-            to = paste0(outputDir, '/', classes[pIndex], '/[', roundNumber(pmax), '] ', gsub('.png', '', predictions$X), '.png')[l])
+  file.copy(from = paste0(extractName, '/', predictions$X), 
+            to = paste0(outputDir, '/', assignedCluster, '/', gsub('.png', '', predictions$X), '.png'))
   unlink(extractName, recursive = T)
   endTime = Sys.time()
-  
-  results[[i]] = data.frame(filename = paste0('[', roundNumber(pmax), '] ', gsub('.png', '', predictions$X), '.png')[l],
-                            class = classes[pIndex],
-                            pmax = pmax)
   
   message('Finished file ', i, ' out of ', length(sourceFiles$classificationFiles),
           '.\tElapsed time: ', round(as.numeric(endTime) - as.numeric(initTime)), ' sec',
@@ -100,7 +110,7 @@ for (i in 1:length(sourceFiles$classificationFiles)) {
 }
 
 
-## Subdivide large folders
+;## Subdivide large folders
 for (folder in list.dirs(outputDir)[-1]) {
   pulledRois = sample(list.files(folder, pattern = '.png'))
   n = length(pulledRois)
@@ -118,7 +128,7 @@ for (folder in list.dirs(outputDir)[-1]) {
   }
 }
 
-  zip(outputDir, zipfile = paste0(outputDir, '.zip'))
+zip(outputDir, zipfile = paste0(outputDir, '.zip'))
 
 
 

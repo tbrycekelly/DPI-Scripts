@@ -173,6 +173,6 @@ def runClassifier(r, model, sidecar, config, logger):
     predictions = model.predict(images, verbose = 0)
 
     df = pd.DataFrame(predictions, index = image_files) 
-    if not config['classification']['feature_space']:
+    if not config['classification']['feature_space']: # there's no such thing as columns names in feature space...
         df.columns = sidecar['labels']
     df.to_csv(classification_output_filepath, index = True, header = True, sep = ',')
