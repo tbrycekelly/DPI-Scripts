@@ -6,10 +6,10 @@ import numpy as np
 import tensorflow as tf
 
 # Keras 3 uses `keras` top-level; fallback for older tf.keras
-#try:
-#    import keras
-#except ImportError:
-#    from tensorflow import keras  # type: ignore
+try:
+    import keras
+except ImportError:
+    from tensorflow import keras  # type: ignore
 
 
 def keras_to_savedmodel(model_path: str, custom_objects=None) -> str:
@@ -21,7 +21,7 @@ def keras_to_savedmodel(model_path: str, custom_objects=None) -> str:
     if not model_path.exists():
         raise FileNotFoundError(f"No such file: {model_path}")
 
-    model = tf.keras.models.load_model(
+    model = keras.models.load_model(
         str(model_path), custom_objects=custom_objects)
 
     out_dir = model_path.with_suffix("")  # strip .keras
