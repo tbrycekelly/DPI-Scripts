@@ -17,5 +17,7 @@ from .functions import *
 from .functionsSegmentation import *
 from .functionsClassification import *
 from .functionsTrain import *
+from .archive_keras_model import *
+from .keras_to_savedmodel import *
 
 thread_local = threading.local()

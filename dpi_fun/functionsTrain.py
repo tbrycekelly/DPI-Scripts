@@ -130,7 +130,7 @@ def mainTrain(config, logger):
 
     # Post training steps
     model_save_pathname = config['training']['model_path'] + \
-        os.path.sep + config['training']['model_name'] + '.keras'
+        os.path.sep + config['training']['model_name']
     json_save_pathname = config['training']['model_path'] + \
         os.path.sep + config['training']['model_name'] + '.json'
 
@@ -149,7 +149,7 @@ def mainTrain(config, logger):
             logger.warn(
                 f"Saved keras file exists. Overwrite is not indicated so current model will be saved as {config['training']['model_name'] + '.keras'}.")
             model_save_pathname = config['training']['model_path'] + \
-                os.path.sep + config['training']['model_name'] + '.keras'
+                os.path.sep + config['training']['model_name']
             config['training']['model_path'] + os.path.sep + \
                 config['training']['model_name'] + '.json'
 
