@@ -24,7 +24,7 @@ def loadModel(config, logger):
     """
     Helper function to load model and sidecar. 
     """
-    model_path = config['classification']['model_dir'] + os.path.sep + config['classification']['model_name']
+    model_path = config['classification']['model_dir'] + os.path.sep + config['classification']['model_name'] + ".keras"
     label_path = config['classification']['model_dir'] + os.path.sep + config['classification']['model_name'] + ".json"
     logger.info(f"Loading model from {model_path}.")
     logger.info(f"Loading model sidecar from {label_path}.")
