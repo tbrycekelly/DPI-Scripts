@@ -6,10 +6,10 @@ import numpy as np
 import tensorflow as tf
 
 # Keras 3 uses `keras` top-level; fallback for older tf.keras
-try:
-    import keras
-except ImportError:
-    from tensorflow import keras  # type: ignore
+#try:
+#    import keras
+#except ImportError:
+#    from tensorflow import keras  # type: ignore
 
 
 def keras_to_savedmodel(model_path: str, custom_objects=None) -> str:
@@ -26,12 +26,13 @@ def keras_to_savedmodel(model_path: str, custom_objects=None) -> str:
 
     out_dir = model_path.with_suffix("")  # strip .keras
     savedmodel_dir = str(out_dir)
+    tf.keras.models.save_model(model, savedmodel_dir)
 
     # Prefer Keras 3 export() if available; otherwise fallback
-    if hasattr(model, "export"):
-        model.export(savedmodel_dir)
-    else:
-        tf.saved_model.save(model, savedmodel_dir)
+    #if hasattr(model, "export"):
+    #    model.export(savedmodel_dir)
+    #else:
+    #    tf.saved_model.save(model, savedmodel_dir)
 
     return savedmodel_dir
 
