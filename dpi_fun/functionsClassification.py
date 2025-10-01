@@ -170,7 +170,7 @@ def runClassifier(r, model, sidecar, config, logger):
     images = np.vstack(images)
         
     logger.debug("Finished loading images. Starting prediction.")
-    predictions = model.predict(images, verbose = 0)
+    predictions = model(images, verbose = 0)
 
     df = pd.DataFrame(predictions, index = image_files) 
     if not config['classification']['feature_space']: # there's no such thing as columns names in feature space...
