@@ -21,7 +21,7 @@ def keras_to_savedmodel(model_path: str, custom_objects=None) -> str:
     if not model_path.exists():
         raise FileNotFoundError(f"No such file: {model_path}")
 
-    model = keras.models.load_model(
+    model = tf.keras.models.load_model(
         str(model_path), custom_objects=custom_objects)
 
     out_dir = model_path.with_suffix("")  # strip .keras
