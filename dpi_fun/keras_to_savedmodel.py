@@ -26,7 +26,7 @@ def keras_to_savedmodel(model_path: str, custom_objects=None) -> str:
 
     out_dir = model_path.with_suffix("")  # strip .keras
     savedmodel_dir = str(out_dir)
-    tf.keras.models.save_model(model, savedmodel_dir)
+    keras.models.save_model(model, savedmodel_dir)
 
     # Prefer Keras 3 export() if available; otherwise fallback
     #if hasattr(model, "export"):
