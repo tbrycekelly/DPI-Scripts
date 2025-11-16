@@ -6,3 +6,4 @@
 *.pyc
 *pycache*
 *.pyc
+docs/.DS_Store
