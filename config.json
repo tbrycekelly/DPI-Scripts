@@ -34,7 +34,7 @@
         "overwrite" : true,
         "image_extensions" : [".png"],
         "feature_space" : true,
-        "from_database" : true
+        "from_database" : false
     },
     "training" : {
         "scnn_dir" : "../training/kaggle2",
