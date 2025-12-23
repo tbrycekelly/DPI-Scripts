@@ -393,60 +393,44 @@ def process_linescan_frame(frame, config, logger):
     gray = gray.clip(0, 255).astype(np.uint8)
     grayAnnotated = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
-    rescale_factor = 1
+    rescale_factor = 2
     gray_small = cv2.resize(gray, (0, 0), fx=1/rescale_factor,
                             fy=1/rescale_factor, interpolation=cv2.INTER_AREA)
 
     # Apply Otsu's threshold
     thresh = calcThreshold(gray_small)
-    
-    # new approach:
-    num, labels, stats, cents = cv2.connectedComponentsWithStats(
-        thresh, connectivity=8)
-    
+    cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = cnts[0] if len(cnts) == 2 else cnts[1]
+
     destPath = frame.get_dest_path()  # filepath to the movie or imageset
     fileName = frame.get_filename()
     frameNumber = frame.get_frame_number()
 
     stats = []
-    
+
     # Open statistics file and iterate through all identified ROIs.
     with open(f'{destPath[:-1]} statistics.csv', 'a', newline='\n') as outcsv:
-        logger.debug(f"Writing to statistics.csv. Found {num} ROIs.")
+        logger.debug(f"Writing to statistics.csv. Found {len(cnts)} ROIs.")
         outwritter = csv.writer(outcsv, delimiter=',', quotechar='|')
         stats = []
-        
-        #out = []
-        for lab in range(1, num):  # label 0 is background
-            x, y, w, h, area = stats[lab]
-            if 2*w + 2*h >= int(config['segmentation']['min_perimeter_statsonly']) and 2*w + 2*h <= int(config['segmentation']['max_perimeter']):
-                roi = labels[y:y+h, x:x+w]
-                comp = (roi == lab).astype(np.uint8) * 255  # small binary ROI
-                cnts, _ = cv2.findContours(comp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                
-                if not cnts:
-                    continue
-                
-                # If multiple small islands somehow exist inside ROI, take the largest:
-                c = max(cnts, key=cv2.contourArea)
-                c[:, 0, 0] += x
-                c[:, 0, 1] += y
-                
-                newstat = calcStats(comp, c[i], x, y, w, h, rescale_factor)
-                outwritter.writerow([frameNumber, i, *newstat])
-                
-                if 2*w + 2*h >= int(config['segmentation']['min_perimeter']) and 2*w + 2*h <= int(config['segmentation']['max_perimeter']):
-                    saveROI(f"{destPath}{fileName}-{frameNumber:06}-{i:06}.png", comp)
-                    if config['segmentation']['diagnostic']:
-                        cv2.rectangle(grayAnnotated, (x, y),
-                                    (x+w, y+h), (0, 0, 255), 1)
+        for i in range(len(cnts)):
+            x, y, w, h = cv2.boundingRect(cnts[i])
+            x = x * rescale_factor
+            y = y * rescale_factor
+            w = w * rescale_factor
+            h = h * rescale_factor
 
-            #out.append({
-            #    "area": int(area),
-            #    "bbox": (int(x), int(y), int(w), int(h)),
-            #    "centroid": (float(cents[lab, 0]), float(cents[lab, 1])),
-            #    "contour": c,  # Nx1x2 int32
-            #})
+            if 2*w + 2*h >= int(config['segmentation']['min_perimeter']) and 2*w + 2*h <= int(config['segmentation']['max_perimeter']):
+                saveROI(f"{destPath}{fileName}-{frameNumber:06}-{i:06}.png",
+                        gray[y:(y+h), x:(x+w)], w, h)
+                if config['segmentation']['diagnostic']:
+                    cv2.rectangle(grayAnnotated, (x, y),
+                                  (x+w, y+h), (0, 0, 255), 1)
+
+            if 2*w + 2*h >= int(config['segmentation']['min_perimeter_statsonly']):
+                newstat = calcStats(
+                    gray[y:(y+h), x:(x+w)], cnts[i], x, y, w, h, rescale_factor)
+                outwritter.writerow([frameNumber, i, *newstat])
 
     # Save optional diagnsotic images before returning.
     if config['segmentation']['diagnostic']:
